@@ -13,3 +13,9 @@ As with all conda environments, be sure to activate the (newly created) conda en
 ```
 conda activate mads_milestone2
 ```
+
+If using VS Code, be sure to use the same for Jupyter kernel
+
+```
+Select kernel -> Python Environments -> mads_milestone2
+```
