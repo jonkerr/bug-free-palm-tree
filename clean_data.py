@@ -20,7 +20,7 @@ class EfficientDataCleaner(ABC):
         super().__init__()
         self.path = CLEAN_DATA_PATH + filename
 
-    def clean_data(self):
+    def clean(self):
         '''
         Only clean if the target file doesn't already exist
         Delete file if exception during clean()
@@ -28,7 +28,7 @@ class EfficientDataCleaner(ABC):
         if os.path.exists(self.path):
            return      
         try:  
-            self.clean()
+            self._clean()
         except Exception as ex:
             print('Failed to clean ', self.path)
             print(ex)
@@ -37,7 +37,7 @@ class EfficientDataCleaner(ABC):
                 os.remove(self.path)   
 
     @abstractmethod
-    def clean(self):
+    def _clean(self):
       pass
 
 
@@ -49,8 +49,7 @@ class CleanSPY(EfficientDataCleaner):
     def __init__(self, filename='sp500_clean.csv') -> None:
        super().__init__(filename)
 
-    def clean(self):
-        print('> Cleaning S&P data')
+    def _clean(self):
         sp = pd.read_csv(RAW_DATA_PATH + 'sp500.csv', index_col = 0, parse_dates=True)
         # resample daily prices to monthly prices
         sp = sp.resample('MS').first()
