@@ -1,3 +1,8 @@
+'''
+Take raw data and perform any required processing steps.
+Output is a set of training data and a set of test data.
+'''
+
 # data pipeline based on work done for Milestone 1: https://github.com/jonkerr/SIADS593
 import pandas as pd
 import os
