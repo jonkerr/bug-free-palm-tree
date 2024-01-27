@@ -1,10 +1,11 @@
 import hidden
 import time
 import pandas as pd
+import os
+from abc import ABC, abstractmethod
 
 # configure data directory
 DATA_PATH = './raw_data/'
-import os
 if not os.path.isdir(DATA_PATH):
     os.mkdir(DATA_PATH)
 
@@ -28,16 +29,16 @@ def get_fred_api():
     ------
     Returns a python Fred APi wrapper    
     '''
-    secrets = hidden.fred_secrets()
+    secrets = hidden.fred_secrets()c
     return Fred(api_key=secrets['api_key'])
 fred = get_fred_api()
 
 
-from abc import ABC, abstractmethod
 class EfficientDownloader(ABC):
     def __init__(self, filename) -> None:
         super().__init__()
         self.path = DATA_PATH + filename
+        self.observation_start='1/1/1959'
 
     def get_data(self):
         '''
@@ -84,10 +85,10 @@ class SeriesData(EfficientDownloader):
     id : FRED series id (list or array)
     observation_start = 'MM/DD/YYYY'
     '''
-    def __init__(self, ids, filename='dataset.csv', observation_start='1/1/1959') -> None:
+    def __init__(self, ids, filename='dataset.csv', observation_start=None) -> None:
        super().__init__(filename)
-       self.ids = ids.id
-       self.observation_start = observation_start
+       self.ids = ids
+       self.observation_start = observation_start or self.observation_start
 
     def download(self):
         print('> Getting Series data')
@@ -114,16 +115,19 @@ class SPData(EfficientDownloader):
     '''
     Download all S&P 500 data and save in CSV format
     Based on some work in a Python notebook that Naomi created
+    ========
+    Issue: this only gets data from 2014 on.  We need to find a way to get historical data
     '''
-    def __init__(self, filename='sp500.csv', observation_start='1/1/1959') -> None:
+    def __init__(self, filename='sp500.csv', observation_start=None) -> None:
        super().__init__(filename)
-       self.observation_start = observation_start
+       self.observation_start = observation_start or self.observation_start
 
     def download(self):
+        '''
+        Need to find a non-FRED source for S&P data.
+        '''
         print('> Getting S&P data')
-        # return for now until proper data is determined
-        return
-        sp = fred.get_series('SP500', observation_start='1/1/1959')
+        sp = fred.get_series('SP500', observation_start=self.observation_start)
         sp.to_csv(self.path)
 
 
@@ -136,7 +140,7 @@ def download(download_option):
     if download_option in ['series', 'all']:
         # Naomi, we need some discussion on where ids.csv comes from 
         df_ids = pd.read_csv(DATA_PATH + 'ids.csv')
-        SeriesData(df_ids).get_data()
+        SeriesData(df_ids.id).get_data()
     if download_option in ['spy', 'all']:
         SPData().get_data()
 
