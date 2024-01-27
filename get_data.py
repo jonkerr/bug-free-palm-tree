@@ -29,7 +29,7 @@ def get_fred_api():
     ------
     Returns a python Fred APi wrapper    
     '''
-    secrets = hidden.fred_secrets()c
+    secrets = hidden.fred_secrets()
     return Fred(api_key=secrets['api_key'])
 fred = get_fred_api()
 
