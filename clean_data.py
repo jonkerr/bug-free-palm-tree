@@ -30,7 +30,7 @@ class EfficientDataCleaner(ABC):
         try:  
             self._clean()
         except Exception as ex:
-            print('Failed to clean ', self.path)
+            print('Failed to create ', self.path)
             print(ex)
             # clean up failed clean
             if os.path.exists(self.path):
@@ -51,11 +51,45 @@ class CleanSPY(EfficientDataCleaner):
 
     def _clean(self):
         sp = pd.read_csv(RAW_DATA_PATH + 'sp500.csv', index_col = 0, parse_dates=True)
+        sp.columns = ['values']
+        # add some additional features
+        sp = self.add_std_features(sp)
         # resample daily prices to monthly prices
         sp = sp.resample('MS').first()
+        # get month to month pct change
+        sp = self.add_pct_change(sp)
         sp.to_csv(self.path)
 
-
+    def add_std_features(self, indf):
+        '''
+        I'm not sure if we'll keep this or not but thought it might be interesting to see if the standard deviation
+        of daily price movement (across last 30 days or a month) gave any insight on our target variable.
+        '''
+        df = indf.copy()
+        # group by month and year and take the std
+        df_std_m = df.groupby([(df.index.year), (df.index.month)]).std().reset_index()
+        df_std_m.columns = ['year','month','std_month']
+        # merge
+        df['year'] = df.index.year
+        df['month'] = df.index.month
+        df = df.reset_index()
+        df = df.merge(df_std_m, on=['year', 'month']).set_index('index')
+        # std for last 30 days (for comparison)
+        df['std_30'] = df['values'].rolling(30, min_periods=3).std()
+        # take mean across different versions of std
+        df['std_mean'] = df[['std_month','std_30']].mean(axis=1)
+        return df.drop(columns=['year','month']).round({'std_month':2, 'std_30':2, 'std_mean':2})
+    
+    def add_pct_change(self, df):
+        '''
+        Calculate the % change from the previous month.
+        A couple limitations of this approach:
+        1. We assume the 20% drop (signaling a bear market) is month to month.  It says nothing about droping within a month and recoverying to > -20%, which would hide the signal.
+        2. If it takes more than one month.  e.g. market drops 10% or more for two consecutive months.  We wouldn't be able to detect that. 
+        '''
+        df['pct_change'] = df['values'].pct_change(fill_method=None)
+        df['pct_change'] = df['pct_change'].apply(lambda x: round(x*100,2))
+        return df
 
 
 
