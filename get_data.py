@@ -3,6 +3,7 @@ import time
 import pandas as pd
 import os
 from abc import ABC, abstractmethod
+from multpl_data_scraper import MultplDataScraper
 
 # configure data directory
 DATA_PATH = './raw_data/'
@@ -48,7 +49,7 @@ class EfficientDownloader(ABC):
         if os.path.exists(self.path):
            return      
         try:  
-            self.download()
+            self._download()
         except Exception as ex:
             print('Failed to get ', self.path)
             print(ex)
@@ -57,7 +58,7 @@ class EfficientDownloader(ABC):
                 os.remove(self.path)   
 
     @abstractmethod
-    def download(self):
+    def _download(self):
       pass
    
 
@@ -69,7 +70,7 @@ class RecessionData(EfficientDownloader):
     def __init__(self, filename='recession.csv') -> None:
        super().__init__(filename)
 
-    def download(self):
+    def _download(self):
         print('> Getting recession data')
         recession = fred.get_series('USREC')
         recession.to_csv(self.path, index_label='Date', header=['Regime'])
@@ -85,13 +86,13 @@ class SeriesData(EfficientDownloader):
     id : FRED series id (list or array)
     observation_start = 'MM/DD/YYYY'
     '''
-    def __init__(self, ids, filename='dataset.csv', observation_start=None) -> None:
+    def __init__(self, ids, filename='econ_fred.csv', observation_start=None) -> None:
        super().__init__(filename)
        self.ids = ids
        self.observation_start = observation_start or self.observation_start
 
-    def download(self):
-        print('> Getting Series data')
+    def _download(self):
+        print('> Getting FRED data')
         dataset = {}
         start_time = time.time()
         for count, i in enumerate(self.ids):
@@ -111,24 +112,24 @@ class SeriesData(EfficientDownloader):
         print(f'number of months: ', df.shape[0])        
 
     
-class SPData(EfficientDownloader):
+class EconomicData(EfficientDownloader):
     '''
-    Download all S&P 500 data and save in CSV format
-    Based on some work in a Python notebook that Naomi created
-    ========
-    Issue: this only gets data from 2014 on.  We need to find a way to get historical data
+    Download historical economic data from multpl
     '''
-    def __init__(self, filename='sp500.csv', observation_start=None) -> None:
+    def __init__(self, filename='econ_multpl.csv', observation_start=None) -> None:
        super().__init__(filename)
        self.observation_start = observation_start or self.observation_start
 
-    def download(self):
+    def _download(self):
         '''
-        Need to find a non-FRED source for S&P data.
+        Scrape the desired data from www.multpl.com
+        Based on Naomi's work in S&P500_data_v1.ipynb
         '''
-        print('> Getting S&P data')
-        sp = fred.get_series('SP500', observation_start=self.observation_start)
-        sp.to_csv(self.path)
+        print('> Getting multpl economic data')
+        df = MultplDataScraper().get_data()
+        
+        # prior to saving, we may want to restrict to dates as of observation_start
+        df.to_csv(self.path)
 
 
 '''
@@ -141,8 +142,8 @@ def download(download_option):
         # Naomi, we need some discussion on where ids.csv comes from 
         df_ids = pd.read_csv(DATA_PATH + 'ids.csv')
         SeriesData(df_ids.id).get_data()
-    if download_option in ['spy', 'all']:
-        SPData().get_data()
+    if download_option in ['econ', 'all']:
+        EconomicData().get_data()
 
 
 '''
@@ -153,7 +154,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # pass an arg using either "-do" or "--download_option"
     parser.add_argument('-do', '--download_option',
-                        help='Which file to download? [rec|series|spy] Default is all',
+                        help='Which file to download? [rec|series|econ] Default is all',
                         default="all",
                         required=False)
     args = parser.parse_args()

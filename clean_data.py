@@ -41,6 +41,33 @@ class EfficientDataCleaner(ABC):
       pass
 
 
+class CleanFRED(EfficientDataCleaner):
+    '''
+    Clean the economic data downloaded from FRED
+    '''
+    def __init__(self, filename='fred_clean.csv') -> None:
+       super().__init__(filename)
+       
+    def _clean(self):
+        pass
+
+
+class CleanMultpl(EfficientDataCleaner):
+    '''
+    Clean the economic data downloaded from multpl
+    '''
+    def __init__(self, filename='multpl_clean.csv') -> None:
+       super().__init__(filename)
+       
+    def _clean(self):
+        df = pd.read_csv(RAW_DATA_PATH + 'econ_multpl.csv', index_col = 0, parse_dates=True)
+        # drop dates that aren't on the first of the month
+        df = df[df.index.day == 1]
+        df.to_csv(self.path)
+        
+
+
+
 class CleanSPY(EfficientDataCleaner):
     '''
     Download all relevant FRED data and save in CSV format
@@ -98,8 +125,15 @@ Data pipeline based on work done for Milestone 1: https://github.com/jonkerr/SIA
 '''
 
 def clean_data(clean_option):
+    if clean_option in ['fred', 'all']:
+        CleanFRED().clean()
+
+    if clean_option in ['multpl', 'all']:
+        CleanMultpl().clean()
+        
     if clean_option in ['spy', 'all']:
-        CleanSPY().clean()
+        pass
+        
 
 
 '''
@@ -110,7 +144,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # pass an arg using either "-do" or "--download_option"
     parser.add_argument('-co', '--clean_option',
-                        help='Which file to clean? [spy] Default is all',
+                        help='Which file to clean? [spy|multpl|fred] Default is all',
                         default="all",
                         required=False)
     args = parser.parse_args()

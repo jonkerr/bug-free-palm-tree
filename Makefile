@@ -1,6 +1,6 @@
 # Make process based on work done for Milestone 1: https://github.com/jonkerr/SIADS593
 
-all: getdata cleandata predict
+all: getdata modeldata predict
 
 # Targets for removing data
 removeraw:
