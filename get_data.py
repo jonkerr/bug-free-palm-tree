@@ -36,9 +36,9 @@ fred = get_fred_api()
 
 
 class EfficientDownloader(ABC):
-    def __init__(self, filename) -> None:
+    def __init__(self, out_file) -> None:
         super().__init__()
-        self.path = DATA_PATH + filename
+        self.path = DATA_PATH + out_file
         self.observation_start='1/1/1959'
 
     def get_data(self):
@@ -67,8 +67,8 @@ class RecessionData(EfficientDownloader):
     Download all relevant FRED data and save in CSV format
     Based on some work in a Python notebook that Naomi created
     '''
-    def __init__(self, filename='recession.csv') -> None:
-       super().__init__(filename)
+    def __init__(self, out_file='recession.csv') -> None:
+       super().__init__(out_file)
 
     def _download(self):
         print('> Getting recession data')
@@ -76,7 +76,7 @@ class RecessionData(EfficientDownloader):
         recession.to_csv(self.path, index_label='Date', header=['Regime'])
 
 
-class SeriesData(EfficientDownloader):
+class FredSeriesData(EfficientDownloader):
     '''
     Returns a dataframe with time series data retrieved from the FRED database
     Based on some work in a Python notebook that Naomi created
@@ -86,8 +86,8 @@ class SeriesData(EfficientDownloader):
     id : FRED series id (list or array)
     observation_start = 'MM/DD/YYYY'
     '''
-    def __init__(self, ids, filename='econ_fred.csv', observation_start=None) -> None:
-       super().__init__(filename)
+    def __init__(self, ids, out_file='econ_fred.csv', observation_start=None) -> None:
+       super().__init__(out_file)
        self.ids = ids
        self.observation_start = observation_start or self.observation_start
 
@@ -116,8 +116,8 @@ class EconomicData(EfficientDownloader):
     '''
     Download historical economic data from multpl
     '''
-    def __init__(self, filename='econ_multpl.csv', observation_start=None) -> None:
-       super().__init__(filename)
+    def __init__(self, out_file='econ_multpl.csv', observation_start=None) -> None:
+       super().__init__(out_file)
        self.observation_start = observation_start or self.observation_start
 
     def _download(self):
@@ -140,8 +140,8 @@ def download(download_option):
         RecessionData().get_data()
     if download_option in ['series', 'all']:
         # Naomi, we need some discussion on where ids.csv comes from 
-        df_ids = pd.read_csv(DATA_PATH + 'ids.csv')
-        SeriesData(df_ids.id).get_data()
+        df_ids = pd.read_csv('curated_data/ids.csv')
+        FredSeriesData(df_ids.id).get_data()
     if download_option in ['econ', 'all']:
         EconomicData().get_data()
 

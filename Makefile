@@ -4,8 +4,7 @@ all: getdata modeldata predict
 
 # Targets for removing data
 removeraw:
-	rm -f raw_data/recession.csv
-	rm -f raw_data/dataset.csv
+	rm -fr raw_data
 
 removecleaned:
 	rm -fr clean_data

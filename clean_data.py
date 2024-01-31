@@ -16,9 +16,9 @@ if not os.path.isdir(CLEAN_DATA_PATH):
 
 
 class EfficientDataCleaner(ABC):
-    def __init__(self, filename) -> None:
+    def __init__(self, out_file) -> None:
         super().__init__()
-        self.path = CLEAN_DATA_PATH + filename
+        self.path = CLEAN_DATA_PATH + out_file
 
     def clean(self):
         '''
@@ -45,8 +45,8 @@ class CleanFRED(EfficientDataCleaner):
     '''
     Clean the economic data downloaded from FRED
     '''
-    def __init__(self, filename='fred_clean.csv') -> None:
-       super().__init__(filename)
+    def __init__(self, out_file='fred_clean.csv') -> None:
+       super().__init__(out_file)
        
     def _clean(self):
         pass
@@ -56,11 +56,12 @@ class CleanMultpl(EfficientDataCleaner):
     '''
     Clean the economic data downloaded from multpl
     '''
-    def __init__(self, filename='multpl_clean.csv') -> None:
-       super().__init__(filename)
+    def __init__(self, out_file='multpl_clean.csv', in_file='econ_multpl.csv') -> None:
+       super().__init__(out_file)
+       self.in_file = in_file
        
     def _clean(self):
-        df = pd.read_csv(RAW_DATA_PATH + 'econ_multpl.csv', index_col = 0, parse_dates=True)
+        df = pd.read_csv(RAW_DATA_PATH + self.in_file, index_col = 0, parse_dates=True)
         # drop dates that aren't on the first of the month
         df = df[df.index.day == 1]
         df.to_csv(self.path)
