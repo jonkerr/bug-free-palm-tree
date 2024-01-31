@@ -164,3 +164,7 @@ hidden.py
 
 # dummy workbook
 scratch.ipynb
+
+# hide output files (for now!)
+raw_data/
+clean_data/
