@@ -3,7 +3,7 @@ import time
 import pandas as pd
 import os
 from abc import ABC, abstractmethod
-from multpl_data_scraper import MultplDataScraper
+from utils.multpl_data_scraper import MultplDataScraper
 
 # configure data directory
 DATA_PATH = './raw_data/'
@@ -39,7 +39,7 @@ class EfficientDownloader(ABC):
     def __init__(self, out_file) -> None:
         super().__init__()
         self.path = DATA_PATH + out_file
-        self.observation_start='1/1/1959'
+        self.observation_start='1/1/1871'
 
     def get_data(self):
         '''
@@ -72,7 +72,7 @@ class RecessionData(EfficientDownloader):
 
     def _download(self):
         print('> Getting recession data')
-        recession = fred.get_series('USREC')
+        recession = fred.get_series('USREC', observation_start=self.observation_start)
         recession.to_csv(self.path, index_label='Date', header=['Regime'])
 
 

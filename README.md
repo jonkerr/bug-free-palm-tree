@@ -28,7 +28,7 @@ Select kernel -> Python Environments -> mads_milestone2
 ## General workflow
 
 ### Building Code
-Makefile is used to simplify building, deleting and rebuilding data and models.
+Makefile is used to simplify building, deleting and rebuilding data and models. 
 
 To build the project end to end, simply run the make command with no targets:
 ```
