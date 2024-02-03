@@ -35,7 +35,7 @@ def get_fred_api():
 fred = get_fred_api()
 
 
-def getMetaData(search='United States', limit = 5000, order_by = 'popularity', freq='Monthly', sa=False):
+def get_meta_data(search='United States', limit = 5000, order_by = 'popularity', freq='Monthly', sa=False):
   '''
   Returns the series ID and detailed information
   of economic indicators for the selected country from the FRED database.
