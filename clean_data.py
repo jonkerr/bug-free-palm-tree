@@ -87,6 +87,13 @@ class MergeData(EfficientDataCleaner):
                for path in paths]
 
         df = pd.concat(dfs, axis=1)
+
+        # we should decide between "S&P500 Price" and	"S&P500 Price - Inflation Adjusted"
+        # using both would be colinear.  For now, let's use inflation adjusted only
+        df = df.drop(columns=['S&P500 Price'])
+        
+        # add lag features
+        df = self.add_lag_features(df)
         
         # determine start date to minimize na cols
         # this would be a key area to adjust to get different data sets
@@ -98,12 +105,6 @@ class MergeData(EfficientDataCleaner):
         # remove empty columns.  
         df, _ = self.remove_variables(df, n=10)
         
-        # we should decide between "S&P500 Price" and	"S&P500 Price - Inflation Adjusted"
-        # using both would be colinear.  For now, let's use inflation adjusted only
-        df = df.drop(columns=['S&P500 Price'])
-        
-        # add lag features
-        df = self.add_lag_features(df)
         
         # Iteratively difference the time series until the number of non-stationary columns is less than a specified threshold.
         df, _ = self.stationarize_data(df, threshold=0.01)
