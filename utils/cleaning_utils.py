@@ -43,7 +43,7 @@ def calculate_bear_market(indf, price_col, include_corrections=True):
     only meaninful during a bear market: ddmax
     It might be meaningful to keep ddn and use either bear or correction as possible targets.
     '''    
-    df = df.drop(columns=['ddn','bearn','ddmax'])
+    df = df.drop(columns=['dd','ddn','bearn','ddmax'])
     
     return df, bears, corrections
 
