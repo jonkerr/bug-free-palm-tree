@@ -39,7 +39,7 @@ class EfficientDownloader(ABC):
     def __init__(self, out_file) -> None:
         super().__init__()
         self.path = DATA_PATH + out_file
-        self.observation_start='1/1/1872'
+        self.observation_start='1/1/1871'
 
     def get_data(self):
         '''
