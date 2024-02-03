@@ -2,6 +2,26 @@ def calculate_bear_market(indf, price_col, include_corrections=True):
     '''
     Calculate a bear market.
     Adapted from https://stackoverflow.com/questions/64830383/calculating-bull-bear-markets-in-pandas
+    -----
+    Note:   The original algorithm takes a different apprach than we ultimately plan to.
+            They calculate a bear market as a 20% decline from an ABSOLUTE market peak.
+            We intend to calculate a bear market as a 20% decline from an RELATIVE market peak.
+            
+            Our approach is more difficult and potentially susceptible to bias as we'd be making a (human judgement based) decision
+            on how far back to look to find the most recent peak.  That said, we feel it's worth the risk as the current model
+            catagorizes the period between 2000-2009 as a single bear market.  An investor following this model would have missed
+            the (secular?) bull market from 2003-2008.  As such, we'd prefer to categorize this period as two bear markets
+            2000-2003 and 2008-2009.
+    '''
+    # Once implemented, use the relative peak approach instead of the absolute peak
+    #return calculate_bear_market_relative_peak(indf, price_col, include_corrections)    
+    return calculate_bear_market_absolute_peak(indf, price_col, include_corrections)
+
+
+def calculate_bear_market_absolute_peak(indf, price_col, include_corrections=True):
+    '''
+    Calculate a bear market.
+    Adapted from https://stackoverflow.com/questions/64830383/calculating-bull-bear-markets-in-pandas
     I've added comments as I've reverse engineered it
     '''
     # avoid directly modifying the df (in case that's not desired)
@@ -46,6 +66,12 @@ def calculate_bear_market(indf, price_col, include_corrections=True):
     df = df.drop(columns=['dd','ddn','bearn','ddmax'])
     
     return df, bears, corrections
+
+
+def calculate_bear_market_relative_peak(indf, price_col, include_corrections=True):
+    pass
+
+
 
 
 def add_pct_change(df):
