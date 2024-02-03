@@ -30,22 +30,20 @@ from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.metrics import roc_auc_score, roc_curve
 
 CLEAN_DATA_PATH = './clean_data/'
-REMOVE = ['Date','bear','correction']
+TRAINING_PATH = './training_data/'
 
-def get_data(split_date = '1980-01-01'):
-    df = pd.read_csv(CLEAN_DATA_PATH + 'merged.csv', index_col=0, parse_dates=True).reset_index(names='Date')
-    df_train, df_test = df[df['Date'] < split_date], df[df['Date'] >= split_date]
+def get_training_data(split_type='std'):
+    '''
+    need to get files in the form:
+    paths = ['X_train_std.csv', 'y_train_std.csv', 'X_test_std.csv', 'y_test_std.csv']
+    '''
+    def format_name(fname):
+        return f'{TRAINING_PATH}/{fname}_{split_type}.csv'
     
-    X_train = df_train.drop(REMOVE, axis=1)
-    y_train = df_train['bear']
+    files = ['X_train', 'y_train', 'X_test', 'y_test']
+    data = {fname: pd.read_csv(format_name(fname)) for fname in files}
+    return data
+    
 
-    X_test = df_test.drop(REMOVE, axis=1)
-    y_test = df_test['bear']
-    
-    sc = StandardScaler()
-    X_train_scaled = sc.fit_transform(X_train)
-    X_test_scaled = sc.transform(X_test)
-    
-    return X_train_scaled, y_train, X_test_scaled, y_test
-
-X_train, y_train, X_test, y_test = get_data()
+data = get_training_data()
+print(data['X_train'].shape)
