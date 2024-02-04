@@ -40,12 +40,6 @@ from sklearn.metrics import (
 )
 import xgboost as xgb
 
-# ignore warnings
-import warnings
-
-# there is a convergence warning for logistic regression,
-# line 152 is causing it but no solution yet
-warnings.filterwarnings("ignore")
 
 CLEAN_DATA_PATH = "./clean_data/"
 TRAINING_PATH = "./training_data/"
@@ -75,6 +69,25 @@ baseline_models = [
 ]
 
 tuned_models = []
+
+
+def scale_data(X_train, X_test):
+    """
+    Use StandardScaler to scale the data for models that require it.
+
+    Parameters:
+    - X_train: The training features.
+    - X_test: The test features.
+
+    Returns:
+    - X_train_scaled: The scaled training features.
+    - X_test_scaled: The scaled test features.
+    """
+
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    return X_train_scaled, X_test_scaled
 
 
 def train_and_evaluate(model, X_train, y_train, X_test, y_test):
@@ -130,9 +143,22 @@ def get_metrics(models):
     X_test, y_test = data["X_test"], data["y_test"]
 
     results = {}
+    model_needs_scaling = [
+        "LogisticRegression",
+        "SVC",
+        "KNeighborsClassifier",
+        "Ridge",
+        "Lasso",
+        "ElasticNet",
+        "RidgeCV",
+        "LassoCV",
+        "ElasticNetCV",
+    ]
 
     for model in models:
         model_name = model.__class__.__name__
+        if model_name in model_needs_scaling:
+            X_train, X_test = scale_data(X_train, X_test)
         metrics = train_and_evaluate(model, X_train, y_train, X_test, y_test)
         results[model_name] = metrics
 
@@ -146,15 +172,14 @@ def get_metrics(models):
 # There needs to be a matching param_grid for each model in the baseline_models list
 param_grids = {
     LogisticRegression: {
-        "C": np.logspace(-4, 4, 20),
-        "penalty": ["l1", "l2"],
-        "solver": ["liblinear", "saga"],
+        "C": np.logspace(-4, 1, 50),
+        "solver": ["liblinear", "lbfgs"],
         "max_iter": [
             200,
-            300,
-            400,
             500,
-        ],  # convergence warning here but not in jupyter 🤔
+            1000,
+            1500,
+        ],
         "class_weight": ["balanced", None],
     },
     DecisionTreeClassifier: {
@@ -207,12 +232,11 @@ def tune_model(model_instance, param_grid, scoring="roc_auc"):
     return best_model
 
 
-def get_tuned_models(baseline_models, param_grids, scoring="roc_auc"):
+def get_tuned_models(param_grids, scoring="roc_auc"):
     """
     Tune the hyperparameters of the baseline models and return the best models.
 
     Parameters:
-    - baseline_models: A list of baseline models.
     - param_grids: A dictionary containing the hyperparameter grids for each model.
     - scoring: The scoring metric to be optimized.
 
@@ -228,7 +252,7 @@ def get_tuned_models(baseline_models, param_grids, scoring="roc_auc"):
     return tuned_models
 
 
-tuned_models = get_tuned_models(baseline_models, param_grids, "roc_auc")
+tuned_models = get_tuned_models(param_grids, "roc_auc")
 
 print("\nmetrics for baseline models\n")
 print(get_metrics(baseline_models))
