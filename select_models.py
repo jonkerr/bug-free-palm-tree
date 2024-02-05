@@ -46,6 +46,9 @@ import xgboost as xgb
 
 CLEAN_DATA_PATH = "./clean_data/"
 TRAINING_PATH = "./training_data/"
+RANDOM_STATE = 42
+SCORING = "roc_auc"
+
 
 
 def get_training_data(split_type="std"):
@@ -67,13 +70,13 @@ data = get_training_data()
 # print(data['X_train'].shape)
 
 baseline_models = [
-    LogisticRegression(random_state=42),
-    DecisionTreeClassifier(random_state=42),
-    RandomForestClassifier(random_state=42),
+    LogisticRegression(random_state=RANDOM_STATE),
+    DecisionTreeClassifier(random_state=RANDOM_STATE),
+    RandomForestClassifier(random_state=RANDOM_STATE),
     KNeighborsClassifier(),  # no random_state
-    SVC(probability=True, random_state=42),  # probability=True needed for roc_auc_score
-    GradientBoostingClassifier(random_state=42),
-    AdaBoostClassifier(random_state=42),
+    SVC(probability=True, random_state=RANDOM_STATE),  # probability=True needed for roc_auc_score
+    GradientBoostingClassifier(random_state=RANDOM_STATE),
+    AdaBoostClassifier(random_state=RANDOM_STATE),
 ]
 
 tuned_models = []  # Created with the function get_tuned_models
@@ -163,7 +166,7 @@ def timing_decorator(func):
         result = func(*args, **kwargs)
         end_time = time.time()
         print(
-            f"Execution time of {func.__name__} function: {end_time - start_time} seconds\n"
+            f"Execution time of {func.__name__} function: {round((end_time - start_time), 3)} seconds\n"
         )
         return result
 
@@ -233,7 +236,7 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test):
 
     return results
 
-
+@timing_decorator
 def get_metrics(models):
     """
     Get the evaluation metrics for each model.
@@ -259,7 +262,7 @@ def get_metrics(models):
 
 
 @timing_decorator
-def tune_model(model_instance, param_grid, scoring="roc_auc"):
+def tune_model(model_instance, param_grid):
     """
     Tune the hyperparameters of a model using GridSearchCV. Default scoring is optimized for ROC-AUC.
 
@@ -282,7 +285,7 @@ def tune_model(model_instance, param_grid, scoring="roc_auc"):
 
     print(f"Tuning hyperparameters for {model_name}...")
     grid_search = GridSearchCV(
-        model_instance, param_grid, cv=5, scoring=scoring, n_jobs=-1
+        model_instance, param_grid, cv=5, scoring=SCORING, n_jobs=-1
     )
     grid_search.fit(X_train, y_train)
 
@@ -291,13 +294,13 @@ def tune_model(model_instance, param_grid, scoring="roc_auc"):
 
     print(f"model: {model_name}")
     print(f"best params: {best_params}")
-    print(f"best {scoring} score: {best_score}")
+    print(f"best {SCORING} score: {round(best_score, 3)}")
 
     best_model = model_instance.set_params(**best_params)
     return best_model
 
 
-def get_tuned_models(param_grids, scoring="roc_auc"):
+def get_tuned_models(param_grids):
     """
     Tune the hyperparameters of the baseline models and return the best models.
 
@@ -312,14 +315,14 @@ def get_tuned_models(param_grids, scoring="roc_auc"):
     for model in baseline_models:
         model_class = model.__class__
         param_grid = param_grids[model_class]
-        best_model = tune_model(model, param_grid, scoring)
+        best_model = tune_model(model, param_grid)
         tuned_models.append(best_model)
     return tuned_models
 
 
 # if we are exporting the tuned models for prediction,
 # then consider making a dictionary
-tuned_models = get_tuned_models(param_grids, "roc_auc")
+tuned_models = get_tuned_models(param_grids)
 
 print("\nMetrics for baseline models:")
 print(get_metrics(baseline_models))
