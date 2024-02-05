@@ -264,7 +264,7 @@ class TrainingData():
         X = self.df.drop(self.remove_list, axis=1)
         y = self.df[self.target]
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.25, stratify=y, random_stateint=SEED)
+            X, y, test_size=0.25, stratify=y, random_state=SEED)
         return X_train, y_train, X_test, y_test
 
     def _standardize(self, X_train, X_test):
@@ -282,7 +282,7 @@ class TrainingData():
         # split data
         X_train, y_train, X_test, y_test = split_fn()
         # standardize
-        X_train, X_test = self._standardize(X_train, X_test)
+        # X_train, X_test = self._standardize(X_train, X_test)
 
         # save
         try:
