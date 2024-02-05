@@ -55,7 +55,7 @@ def get_training_data(split_type="std"):
     """
 
     def format_name(fname):
-        return f"{TRAINING_PATH}/{fname}_{split_type}.csv"
+        return f"{TRAINING_PATH}{fname}_{split_type}.csv"
 
     files = ["X_train", "y_train", "X_test", "y_test"]
     data = {fname: pd.read_csv(format_name(fname)) for fname in files}
