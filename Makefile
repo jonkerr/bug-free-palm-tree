@@ -10,6 +10,7 @@ removecleaned:
 	rm -fr clean_data
 
 removemodeldata:
+	rm -fr training_data
 	rm -fr model_data
 
 removeall: removemodeldata removecleaned removeraw
@@ -31,3 +32,4 @@ predict: selectmodels
 refresh: removeall all
 reclean: removecleaned modeldata
 remodel: removemodeldata selectmodels
+remodelc: removemodeldata removecleaned selectmodels

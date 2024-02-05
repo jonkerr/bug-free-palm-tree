@@ -110,9 +110,12 @@ class MergeData(EfficientDataCleaner):
         # remove empty columns.
         df, _ = self.remove_variables(df.copy(), n=10)
 
+        # finally, drop na
+        df.dropna(axis=0, inplace=True)
+        
         # Iteratively difference the time series until the number of non-stationary columns is less than a specified threshold.
-        # df, _ = self.stationarize_data(df, threshold=0.01)
-
+        df, _ = self.stationarize_data(df, threshold=0.01)
+        
         # save
         df.to_csv(self.path)
 
@@ -157,7 +160,6 @@ class MergeData(EfficientDataCleaner):
 #                df['{}_{}M_lag'.format(col, n)] = df[col].shift(n).ffill().values
         new_df = pd.DataFrame(lag_cols, index=df.index)
         df = pd.concat([df, new_df], axis=1)
-        # df.dropna(axis=0, inplace=True)
         return df
 
     def stationarize_data(self, df, threshold=0.01, max_non_stationary_cols=10):
