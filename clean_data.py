@@ -12,6 +12,8 @@ from statsmodels.tsa.stattools import adfuller
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
+SEED = 42
+
 # configure data directory
 RAW_DATA_PATH = './raw_data/'
 CLEAN_DATA_PATH = './clean_data/'
@@ -161,6 +163,20 @@ class MergeData(EfficientDataCleaner):
                 lag_cols['{}_{}M_lag'.format(col, n)] = df[col].shift(
                     n).ffill().values
 #                df['{}_{}M_lag'.format(col, n)] = df[col].shift(n).ffill().values
+
+        '''
+        lags.insert(0,2)
+        lags.insert(0,1)
+        
+        def pct_change(base_col, next_col):
+            return (next_col.sub(base_col)) / base_col * 100
+        
+        for n in lags:
+            col = 'S&P500 Price - Inflation Adjusted'            
+            next_col = df[col].shift(n).ffill()            
+            lag_cols['{}_pct_change_{}M_lag'.format(col, n)] = pct_change(col, next_col)            
+        '''
+
         new_df = pd.DataFrame(lag_cols, index=df.index)
         df = pd.concat([df, new_df], axis=1)
         return df
@@ -248,7 +264,7 @@ class TrainingData():
         X = self.df.drop(self.remove_list, axis=1)
         y = self.df[self.target]
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.25, stratify=y)
+            X, y, test_size=0.25, stratify=y, random_stateint=SEED)
         return X_train, y_train, X_test, y_test
 
     def _standardize(self, X_train, X_test):
