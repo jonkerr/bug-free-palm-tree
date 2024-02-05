@@ -116,6 +116,9 @@ class MergeData(EfficientDataCleaner):
         # Iteratively difference the time series until the number of non-stationary columns is less than a specified threshold.
         df, _ = self.stationarize_data(df, threshold=0.01)
         
+        # shift the bear markets back a month to promote trying to predict bear markets, one month in the future
+        df['bear'] = df['bear'].shift(-1).ffill()
+        
         # save
         df.to_csv(self.path)
 
