@@ -78,8 +78,6 @@ baseline_models = [
     xgb.XGBClassifier(random_state=SEED),
 ]
 
-tuned_models = []  # Created with the function get_tuned_models
-
 model_needs_scaling = [
     "LogisticRegression",
     "KNeighborsClassifier",
@@ -257,6 +255,9 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test):
 
     results = {}
 
+    # Clone the model to avoid side-effects like overfitting
+    model = clone(model)
+
     model.fit(X_train, y_train.values.ravel())  # Train the model
     Y_pred = model.predict(X_test)  # Test the model
     Y_pred_proba = model.predict_proba(X_test)[:, 1]
@@ -272,57 +273,68 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test):
     return results
 
 
-def get_metrics(models):
+def get_metrics(
+    models, X_train=data["X_train"], X_test=data["X_test"], scoring=SCORING
+):
     """
     Get the evaluation metrics for each model.
+
+    Parameters:
+    - models: A list of model instances.
+    - X_train: The training features. Default is X_train from the base training set
+    - X_test: The test features. Default is X_test from the base training set
+    - scoring: The scoring metric to be used. Default is 'roc_auc'.
 
     Returns:
     - df: A dataframe containing the evaluation metrics for each model.
     """
 
-    X_train, y_train = data["X_train"], data["y_train"]
-    X_test, y_test = data["X_test"], data["y_test"]
+    y_train, y_test = data["y_train"], data["y_test"]
 
     results = {}
 
     for model in models:
         model_name = model.__class__.__name__
+        # create local copies for potential scaling
+        X_train_temp, X_test_temp = X_train.copy(), X_test.copy()
+
         if model_name in model_needs_scaling:
-            X_train, X_test = scale_data(X_train, X_test)
-        metrics = train_and_evaluate(model, X_train, y_train, X_test, y_test)
+            X_train_temp, X_test_temp = scale_data(X_train_temp, X_test_temp)
+
+        # use temp copies for training and evaluation
+        metrics = train_and_evaluate(model, X_train_temp, y_train, X_test_temp, y_test)
         results[model_name] = metrics
 
     df = pd.DataFrame(results).T
-    df = df.sort_values(by=SCORING, ascending=False)
+    df = df.sort_values(by=scoring, ascending=False)
     return df
 
 
 @timing_decorator
-def tune_model(model_instance, param_grid):
+def tune_model(model, param_grid, X_train=data["X_train"], scoring=SCORING):
     """
     Tune the hyperparameters of a model using GridSearchCV. Default scoring is optimized for ROC-AUC.
 
     Parameters:
-    - model_instance: The model to be tuned.
-    - param_grid: The hyperparameter grid to be searched.
-    - scoring: The scoring metric to be optimized.
+    - model: The model to be tuned.
+    - param_grid: The hyperparameter grid for the model.
+    - X_train: The training features. Default is X_train from the base training set
+    - scoring: The scoring metric to be used. Default is 'roc_auc'.
 
     Returns:
     - best_model: The best model with the optimized hyperparameters.
     """
     # Clone the model to avoid side-effects like changing the baseline model list
-    model_instance = clone(model_instance)
-    model_name = model_instance.__class__.__name__
+    model = clone(model)
+    model_name = model.__class__.__name__
 
-    X_train, y_train = data["X_train"], data["y_train"].values.ravel()
+    y_train = data["y_train"].values.ravel()
 
     if model_name in model_needs_scaling:
         X_train, _ = scale_data(X_train)
 
     print(f"Tuning hyperparameters for {model_name}...")
-    grid_search = GridSearchCV(
-        model_instance, param_grid, cv=5, scoring=SCORING, n_jobs=-1
-    )
+    grid_search = GridSearchCV(model, param_grid, cv=5, scoring=scoring, n_jobs=-1)
     grid_search.fit(X_train, y_train)
 
     best_params = grid_search.best_params_
@@ -330,19 +342,20 @@ def tune_model(model_instance, param_grid):
 
     print(f"model: {model_name}")
     print(f"best params: {best_params}")
-    print(f"best {SCORING} score: {round(best_score, 3)}")
+    print(f"best {scoring} score: {round(best_score, 3)}")
 
-    best_model = model_instance.set_params(**best_params)
+    best_model = model.set_params(**best_params)
     return best_model
 
 
-def get_tuned_models(param_grids):
+def get_tuned_models(param_grids, X_train=data["X_train"], scoring=SCORING):
     """
     Tune the hyperparameters of the baseline models and return the best models.
 
     Parameters:
     - param_grids: A dictionary containing the hyperparameter grids for each model.
-    - scoring: The scoring metric to be optimized.
+    - X_train: The training features. Default is X_train from the base training set
+    - scoring: The scoring metric to be used. Default is 'roc_auc'.
 
     Returns:
     - tuned_models: A list of the best models with the optimized hyperparameters.
@@ -351,19 +364,17 @@ def get_tuned_models(param_grids):
     for model in baseline_models:
         model_class = model.__class__
         param_grid = param_grids[model_class]
-        best_model = tune_model(model, param_grid)
+        best_model = tune_model(model, param_grid, X_train, scoring=scoring)
         tuned_models.append(best_model)
         print(f"{len(tuned_models)}/{len(baseline_models)} models tuned\n")
     return tuned_models
 
 
-import pandas as pd
-
-
 def get_probs(models):
-    # should this be modified to get the top x models instead of all?? 🤔
     """
     Collect probability predictions from each model for the positive class.
+    This is used as the input for the stage 2 models where we are trying to
+    select the best models to use in the ensemble.
 
     Parameters:
     - models: A list of model instances.
@@ -372,40 +383,68 @@ def get_probs(models):
     - train_probs: A DataFrame containing the training set probability predictions.
     - test_probs: A DataFrame containing the test set probability predictions.
     """
-    X_train, y_train = data["X_train"], data["y_train"]
-    X_test = data["X_test"]
-
     train_probs = pd.DataFrame()
     test_probs = pd.DataFrame()
+
+    models = [
+        clone(model) for model in models
+    ]  # Clone the models to avoid side-effects
 
     for model in models:
         # Get the model's class name to use as a column name
         model_name = model.__class__.__name__
-        # If model requires scaling, then scale the data
+        # Check if the model requires scaling
         if model_name in model_needs_scaling:
-            X_train, X_test = scale_data(X_train, X_test)
-        # Ensure the model is fitted; this function assumes models are already trained
-        model.fit(X_train, y_train.values.ravel())
-        train_probs[model_name] = model.predict_proba(X_train)[:, 1]
-        test_probs[model_name] = model.predict_proba(X_test)[:, 1]
+            # Scale the data and use the original data for each model to avoid repeated scaling
+            X_train_scaled, X_test_scaled = scale_data(data["X_train"], data["X_test"])
+            # Fit the model on the scaled training data
+            model.fit(X_train_scaled, data["y_train"].values.ravel())
+            # Use the scaled training data for generating predictions
+            train_probs[model_name] = model.predict_proba(X_train_scaled)[:, 1]
+            test_probs[model_name] = model.predict_proba(X_test_scaled)[:, 1]
+        else:
+            # Fit the model on the original training data
+            model.fit(data["X_train"], data["y_train"].values.ravel())
+            # Use the original training data for generating predictions
+            train_probs[model_name] = model.predict_proba(data["X_train"])[:, 1]
+            test_probs[model_name] = model.predict_proba(data["X_test"])[:, 1]
 
     return train_probs.round(4), test_probs.round(4)
 
 
-# if we are exporting the tuned models for prediction,
-# then consider making a dictionary
-tuned_models = get_tuned_models(param_grids)
+# if we are exporting the tuned models for prediction, consider making a dictionary
+print("Stage 1: Tuning models on training data...\n")
+s1_tuned_models = get_tuned_models(param_grids)
 
-print("Getting metrics for baseline models...")
-print(get_metrics(baseline_models))
+print("Stage 1: Training and evaluating baseline_models on training data...")
+s1_base_metrics = get_metrics(baseline_models)
+print(s1_base_metrics)
+# s1_base_metrics.to_csv("s1_baseline_metrics.csv")
 
-print("\nGetting metrics for tuned models...")
-print(get_metrics(tuned_models))
+print("\nStage 1: Training and evaluating s1_tuned_models on training data...")
+s1_tuned_metrics = get_metrics(s1_tuned_models)
+print(s1_tuned_metrics)
+# s1_tuned_metrics.to_csv("s1_tuned_metrics.csv")
 
 # get the probability predictions for each model
-train_probs, test_probs = get_probs(tuned_models)
-print("\n=====================================================")
-print("\nProbability predictions for the training set:")
-print(train_probs)
-print("\nProbability predictions for the test set:")
-print(test_probs)
+train_probs, test_probs = get_probs(s1_tuned_models)
+
+# train_probs.to_csv("train_probs.csv", index=False)
+# test_probs.to_csv("test_probs.csv", index=False)
+
+# train_probs = pd.read_csv("train_probs.csv")
+# test_probs = pd.read_csv("test_probs.csv")
+
+# get tuned models for stage 2
+print("Stage 2: Tuning models on probability data...\n")
+s2_tuned_models = get_tuned_models(param_grids, X_train=train_probs)
+
+print("Stage 2: Training and evaluating baseline_models on probability data...")
+s2_base_metrics = get_metrics(baseline_models, X_train=train_probs, X_test=test_probs)
+print(s2_base_metrics)
+# s2_base_metrics.to_csv("s2_baseline_metrics.csv")
+
+print("\nStage 2: Training and evaluating s2_tuned_models on probability data...")
+s2_tuned_metrics = get_metrics(s2_tuned_models, X_train=train_probs, X_test=test_probs)
+print(s2_tuned_metrics)
+# s2_tuned_metrics.to_csv("s2_tuned_metrics.csv")
