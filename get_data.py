@@ -35,7 +35,7 @@ def get_fred_api():
 fred = get_fred_api()
 
 
-def get_meta_data(search='United States', limit = 5000, order_by = 'popularity', freq='Monthly', sa=False):
+def get_meta_data(text='United States', limit = 1000, order_by = 'popularity', sort_order = 'desc', freq='Monthly', sa=False):
   '''
   Returns the series ID and detailed information
   of economic indicators for the selected country from the FRED database.
@@ -43,11 +43,13 @@ def get_meta_data(search='United States', limit = 5000, order_by = 'popularity',
   Parameters
   ----------
   country: country name (str) or search keyword (e.g.,'GDP')
-  order_by: valid options are 'popularity', 'search_rank', 'series_id', 'title', etc.
+  limit: default 1000
+  order_by: valid options are 'search_rank', 'series_id', 'title', etc
+  realtime_start', 'realtime_end', 'last_updated', 'observation_start', 'observation_end','popularity'
   freq: frequency ('Daily', 'Monthly', 'Quarterly', 'Annual' )
-  sa: seasonally adjusted or not 
+  sa: seasonally adjusted or not
   '''
-  data = fred.search(search)
+  data = fred.search(text = text, limit = limit, order_by = order_by, sort_order = sort_order)
   data = data[(data['frequency']==freq)]
   if sa == True:
     data = data[data['seasonal_adjustment'] !='Not Seasonally Adjusted']
