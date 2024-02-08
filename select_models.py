@@ -7,6 +7,8 @@ Lots used from: EDA_Spike/Part 4_Model_v1.ipynb
 # import libraries
 import time
 from functools import wraps
+import json
+import os
 
 import numpy as np
 import pandas as pd
@@ -272,6 +274,7 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test):
 
     return results
 
+    
 
 def get_metrics(
     models, X_train=data["X_train"], X_test=data["X_test"], scoring=SCORING
@@ -323,6 +326,7 @@ def tune_model(model, param_grid, X_train=data["X_train"], scoring=SCORING):
 
     Returns:
     - best_model: The best model with the optimized hyperparameters.
+    - best_params: Used to serialize/rehydrate previously optimized models.
     """
     # Clone the model to avoid side-effects like changing the baseline model list
     model = clone(model)
@@ -345,10 +349,46 @@ def tune_model(model, param_grid, X_train=data["X_train"], scoring=SCORING):
     print(f"best {scoring} score: {round(best_score, 3)}")
 
     best_model = model.set_params(**best_params)
-    return best_model
+    return best_model, best_params
 
 
-def get_tuned_models(param_grids, X_train=data["X_train"], scoring=SCORING):
+def rehydrate_models(json_file):    
+    """
+    Tune the hyperparameters of a model using GridSearchCV. Default scoring is optimized for ROC-AUC.
+
+    Parameters:
+    - json_file: Name of the json file to read from
+
+    Returns:
+    - tuned_models: The optimally tuned models
+    - tuned_model_names: The names of the tuned models
+    - best_model_params: The params used for the optimal models
+    
+    """
+    if not os.path.exists(json_file):
+        return [],[]
+    
+    best_model_params = {}
+    tuned_models = []
+    tuned_model_names = []
+
+    with open(json_file, 'r') as file:
+        # Reading from json file
+        best_model_params = json.load(file)
+            
+    for model in baseline_models:
+        model_name = model.__class__.__name__      
+        if model_name in best_model_params.keys():
+            best_params = best_model_params[model_name]
+            best_model = model.set_params(**best_params)
+            tuned_models.append(best_model)   
+            tuned_model_names.append(model_name)
+            
+    return tuned_models, tuned_model_names, best_model_params
+            
+    
+
+def get_tuned_models(param_grids, X_train=data["X_train"], scoring=SCORING, stage=1, rehydrate=False):
     """
     Tune the hyperparameters of the baseline models and return the best models.
 
@@ -360,13 +400,34 @@ def get_tuned_models(param_grids, X_train=data["X_train"], scoring=SCORING):
     Returns:
     - tuned_models: A list of the best models with the optimized hyperparameters.
     """
-    tuned_models = []
+    json_file = f'stage{stage}_params.json'
+    tuned_models, tuned_model_names, best_model_params = rehydrate_models(json_file) if rehydrate else ([],[], {})
+                
     for model in baseline_models:
         model_class = model.__class__
+        model_name = model_class.__name__
+        
+        # check if rehydrated
+        if model_name in tuned_model_names:
+            continue
+        
         param_grid = param_grids[model_class]
-        best_model = tune_model(model, param_grid, X_train, scoring=scoring)
+        best_model, best_params = tune_model(model, param_grid, X_train, scoring=scoring)
+        
         tuned_models.append(best_model)
         print(f"{len(tuned_models)}/{len(baseline_models)} models tuned\n")
+        # store best params for rehydration
+        best_model_params[model_name] = best_params
+        
+    # save best params
+    with open(json_file, "w") as file:
+        # Some algos wrap others, which makes them non-serializable
+        # Remove from list and we'll need to CV them each time
+        del best_model_params['AdaBoostClassifier']
+        del best_model_params['BaggingClassifier']
+        # save to JSON
+        json.dump(best_model_params, file)
+
     return tuned_models
 
 
@@ -412,39 +473,51 @@ def get_probs(models):
     return train_probs.round(4), test_probs.round(4)
 
 
-# if we are exporting the tuned models for prediction, consider making a dictionary
-print("Stage 1: Tuning models on training data...\n")
-s1_tuned_models = get_tuned_models(param_grids)
+@timing_decorator
+def run_comparison(include_baseline=True, include_stage_2=True, rehydrate=False):
 
-print("Stage 1: Training and evaluating baseline_models on training data...")
-s1_base_metrics = get_metrics(baseline_models)
-print(s1_base_metrics)
-# s1_base_metrics.to_csv("s1_baseline_metrics.csv")
+    # if we are exporting the tuned models for prediction, consider making a dictionary
+    print("Stage 1: Tuning models on training data...\n")
+    s1_tuned_models = get_tuned_models(param_grids, rehydrate=rehydrate)
 
-print("\nStage 1: Training and evaluating s1_tuned_models on training data...")
-s1_tuned_metrics = get_metrics(s1_tuned_models)
-print(s1_tuned_metrics)
-# s1_tuned_metrics.to_csv("s1_tuned_metrics.csv")
+    if include_baseline:
+        print("Stage 1: Training and evaluating baseline_models on training data...")
+        s1_base_metrics = get_metrics(baseline_models)
+        print(s1_base_metrics)
+        # s1_base_metrics.to_csv("s1_baseline_metrics.csv")
 
-# get the probability predictions for each model
-train_probs, test_probs = get_probs(s1_tuned_models)
+    print("\nStage 1: Training and evaluating s1_tuned_models on training data...")
+    s1_tuned_metrics = get_metrics(s1_tuned_models)
+    print(s1_tuned_metrics)
+    # s1_tuned_metrics.to_csv("s1_tuned_metrics.csv")
 
-# train_probs.to_csv("train_probs.csv", index=False)
-# test_probs.to_csv("test_probs.csv", index=False)
+    # get the probability predictions for each model
+    train_probs, test_probs = get_probs(s1_tuned_models)
 
-# train_probs = pd.read_csv("train_probs.csv")
-# test_probs = pd.read_csv("test_probs.csv")
+    # train_probs.to_csv("train_probs.csv", index=False)
+    # test_probs.to_csv("test_probs.csv", index=False)
 
-# get tuned models for stage 2
-print("Stage 2: Tuning models on probability data...\n")
-s2_tuned_models = get_tuned_models(param_grids, X_train=train_probs)
+    # train_probs = pd.read_csv("train_probs.csv")
+    # test_probs = pd.read_csv("test_probs.csv")
 
-print("Stage 2: Training and evaluating baseline_models on probability data...")
-s2_base_metrics = get_metrics(baseline_models, X_train=train_probs, X_test=test_probs)
-print(s2_base_metrics)
-# s2_base_metrics.to_csv("s2_baseline_metrics.csv")
+    if include_stage_2:
+        # get tuned models for stage 2
+        print("Stage 2: Tuning models on probability data...\n")
+        s2_tuned_models = get_tuned_models(param_grids, X_train=train_probs, stage=2)
 
-print("\nStage 2: Training and evaluating s2_tuned_models on probability data...")
-s2_tuned_metrics = get_metrics(s2_tuned_models, X_train=train_probs, X_test=test_probs)
-print(s2_tuned_metrics)
-# s2_tuned_metrics.to_csv("s2_tuned_metrics.csv")
+        if include_baseline:
+            print("Stage 2: Training and evaluating baseline_models on probability data...")
+            s2_base_metrics = get_metrics(baseline_models, X_train=train_probs, X_test=test_probs)
+            print(s2_base_metrics)
+            # s2_base_metrics.to_csv("s2_baseline_metrics.csv")
+
+        print("\nStage 2: Training and evaluating s2_tuned_models on probability data...")
+        s2_tuned_metrics = get_metrics(s2_tuned_models, X_train=train_probs, X_test=test_probs)
+        print(s2_tuned_metrics)
+        # s2_tuned_metrics.to_csv("s2_tuned_metrics.csv")
+
+# full run
+#run_comparison()
+
+# fast run
+run_comparison(include_baseline=False, include_stage_2=False, rehydrate=True)
