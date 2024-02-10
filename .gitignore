@@ -170,3 +170,4 @@ smote_test/
 raw_data/
 clean_data/
 training_data/
+recession.csv
