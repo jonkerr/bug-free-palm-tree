@@ -1,6 +1,6 @@
 # Make process based on work done for Milestone 1: https://github.com/jonkerr/SIADS593
 
-all: getdata modeldata predict
+all: predict
 
 # Targets for removing data
 removeraw:
@@ -19,16 +19,23 @@ removeall: removemodeldata removecleaned removeraw
 getdata:
 	python get_data.py
 
-modeldata: getdata
+clean: getdata
 	python clean_data.py
 
-selectmodels: modeldata
+features: clean
+	python select_features.py
+
+split: features
+	python split_data.py
+
+selectmodels: split
 	python select_models.py
 
 predict: selectmodels
 	python predict.py
 
 # Composite targets for iterative development
+reraw: removeraw getdata
 refresh: removeall all
 reclean: removecleaned modeldata
 remodel: removemodeldata selectmodels

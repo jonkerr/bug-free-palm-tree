@@ -1,4 +1,3 @@
-from functools import wraps
 import hidden
 import time
 import pandas as pd
@@ -7,11 +6,11 @@ from utils.multpl_data_scraper import MultplDataScraper
 from collections import defaultdict
 from fredapi import Fred
 
-# configure data directory
-DEFAULT_OBSERVATION_START = '1/1/1871'
-DATA_PATH = './raw_data/'
-if not os.path.isdir(DATA_PATH):
-    os.mkdir(DATA_PATH)
+# utils
+from utils.decorators import file_check_decorator
+from utils.constants import *
+
+out_data_path = RAW_DATA_PATH
 
 """
 # FRED API (Previously gathered in Jupyter notebooks put together by Naomi.  I've just moved it into Python files for convenience and automation.)
@@ -38,38 +37,6 @@ def get_fred_api():
 
 fred = get_fred_api()
 
-
-def file_check_decorator(func):
-    """
-    A decorator to:
-    * Append the target folder to the path
-    * Confirm the existence of a file path
-    * Avoid re-downloading if the file already exists and just return the dataframe instead
-
-    Parameters:
-    - func: The function to be measured.
-
-    Returns:
-    - wrapper: The wrapper function.
-    """
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        filepath = DATA_PATH + args[0]
-        if os.path.exists(filepath):
-            return pd.read_csv(filepath, index_col=0, parse_dates=True)
-        try:
-            # new set of args, using the filepath for the first one
-            new_args = [filepath if idx == 0 else a for idx, a in enumerate(args)]
-            result = func(*new_args, **kwargs)
-        except Exception as ex:
-            # clean up failed write
-            if os.path.exists(filepath):
-                os.remove(filepath)
-            raise ex
-        return result
-    return wrapper
-
-
 def get_meta_data(search='United States', limit=5000, order_by='popularity', freq='Monthly', sa=False):
     '''
     Returns the series ID and detailed information
@@ -90,7 +57,7 @@ def get_meta_data(search='United States', limit=5000, order_by='popularity', fre
     return data
 
 
-@file_check_decorator
+@file_check_decorator(out_data_path)
 def get_recession_data(out_file, observation_start=DEFAULT_OBSERVATION_START):
     '''
     Download all relevant FRED data and save in CSV format
@@ -102,7 +69,7 @@ def get_recession_data(out_file, observation_start=DEFAULT_OBSERVATION_START):
     return recession
 
 
-@file_check_decorator
+@file_check_decorator(out_data_path)
 def get_fred_series_data(out_file, ids, observation_start=None):
     '''
     Returns a dataframe with time series data retrieved from the FRED database
@@ -137,7 +104,7 @@ def get_fred_series_data(out_file, ids, observation_start=None):
     return df
 
 
-@file_check_decorator
+@file_check_decorator(out_data_path)
 def get_multpl_data(out_file):
     '''
     Scrape the desired data from www.multpl.com
@@ -155,6 +122,9 @@ def download(download_option):
     '''
     Data pipeline based on work done for Milestone 1: https://github.com/jonkerr/SIADS593
     '''
+    if not os.path.isdir(RAW_DATA_PATH):
+        os.mkdir(RAW_DATA_PATH)
+
     data = defaultdict(None)
     if download_option in ['rec', 'all']:
         data['recession'] = get_recession_data('recession.csv')
@@ -169,7 +139,7 @@ def download(download_option):
 '''
 Handle command line arguments
 '''
-if __name__ == '__main__':
+if __name__ == '__main__':   
     import argparse
     parser = argparse.ArgumentParser()
     # pass an arg using either "-do" or "--download_option"

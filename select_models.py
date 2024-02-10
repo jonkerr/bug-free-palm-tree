@@ -37,13 +37,11 @@ from sklearn.metrics import (
     f1_score,
 )
 import xgboost as xgb
-
-
-CLEAN_DATA_PATH = "./clean_data/"
-TRAINING_PATH = "./training_data/"
-SEED = 42
-SCORING = "roc_auc"  # options: 'accuracy', 'precision', 'recall', 'f1', 'roc_auc'
-
+from utils.constants import (
+    SEED, 
+    TRAINING_DATA_PATH, 
+    SCORING
+)
 
 def get_training_data(split_type="std"):
     """
@@ -52,7 +50,7 @@ def get_training_data(split_type="std"):
     """
 
     def format_name(fname):
-        return f"{TRAINING_PATH}{fname}_{split_type}.csv"
+        return f"{TRAINING_DATA_PATH}{fname}_{split_type}.csv"
 
     files = ["X_train", "y_train", "X_test", "y_test"]
     data = {fname: pd.read_csv(format_name(fname)) for fname in files}
