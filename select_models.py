@@ -85,6 +85,10 @@ model_needs_scaling = [
     "GaussianProcessClassifier",  # might benefit from scaling (it does)
 ]
 
+ignore_in_phase_2 = [
+    'DecisionTreeClassifier',
+    'AdaBoostClassifier',
+]
 
 # There needs to be a matching param_grid for each model in
 # the baseline_models list for the tuning process to work
@@ -452,6 +456,9 @@ def get_probs(models):
     for model in models:
         # Get the model's class name to use as a column name
         model_name = model.__class__.__name__
+        # skip poorly performing stage 2 models
+        if model_name in ignore_in_phase_2:
+            continue
         # Check if the model requires scaling
         if model_name in model_needs_scaling:
             # Scale the data and use the original data for each model to avoid repeated scaling
@@ -472,7 +479,7 @@ def get_probs(models):
 
 
 @timing_decorator
-def run_comparison(include_baseline=True, include_stage_2=True, rehydrate=False):
+def run_comparison(include_baseline=True, include_stage_2=True, rehydrate=False, save_metrics=False):
 
     # if we are exporting the tuned models for prediction, consider making a dictionary
     print("Stage 1: Tuning models on training data...\n")
@@ -482,12 +489,14 @@ def run_comparison(include_baseline=True, include_stage_2=True, rehydrate=False)
         print("Stage 1: Training and evaluating baseline_models on training data...")
         s1_base_metrics = get_metrics(baseline_models)
         print(s1_base_metrics)
-        # s1_base_metrics.to_csv("s1_baseline_metrics.csv")
+        if save_metrics:
+            s1_base_metrics.to_csv("s1_baseline_metrics.csv")
 
     print("\nStage 1: Training and evaluating s1_tuned_models on training data...")
     s1_tuned_metrics = get_metrics(s1_tuned_models)
     print(s1_tuned_metrics)
-    # s1_tuned_metrics.to_csv("s1_tuned_metrics.csv")
+    if save_metrics:
+        s1_tuned_metrics.to_csv("s1_tuned_metrics.csv")
 
     # get the probability predictions for each model
     train_probs, test_probs = get_probs(s1_tuned_models)
@@ -507,15 +516,17 @@ def run_comparison(include_baseline=True, include_stage_2=True, rehydrate=False)
             print("Stage 2: Training and evaluating baseline_models on probability data...")
             s2_base_metrics = get_metrics(baseline_models, X_train=train_probs, X_test=test_probs)
             print(s2_base_metrics)
-            # s2_base_metrics.to_csv("s2_baseline_metrics.csv")
+            if save_metrics:
+                s2_base_metrics.to_csv("s2_baseline_metrics.csv")
 
         print("\nStage 2: Training and evaluating s2_tuned_models on probability data...")
         s2_tuned_metrics = get_metrics(s2_tuned_models, X_train=train_probs, X_test=test_probs)
         print(s2_tuned_metrics)
-        # s2_tuned_metrics.to_csv("s2_tuned_metrics.csv")
+        if save_metrics:
+            s2_tuned_metrics.to_csv("s2_tuned_metrics.csv")
 
 # full run
 #run_comparison()
 
 # fast run
-run_comparison(include_baseline=False, include_stage_2=False, rehydrate=True)
+run_comparison(include_baseline=False, include_stage_2=False, rehydrate=True, save_metrics=False)

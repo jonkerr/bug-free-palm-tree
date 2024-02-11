@@ -23,7 +23,6 @@ def clean_multpl(out_file, in_file):
     '''
     Adds bear market calculation.
     '''
-    print(out_file)
     df = pd.read_csv(RAW_DATA_PATH + in_file, index_col=0, parse_dates=True)
 
     # Yield is published the last day of the month.  Fill it to the first day so we don't lose it.

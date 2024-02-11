@@ -4,11 +4,11 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
 # project constants
-from utils.constants import SEED, REMOVE_LIST, TARGET, CLEAN_DATA_PATH, TRAINING_DATA_PATH
+from utils.constants import SEED, REMOVE_LIST, TARGET, CLEAN_DATA_PATH, TRAINING_DATA_PATH, FEATURE_DATA_PATH
 
 out_data_path = TRAINING_DATA_PATH
 
-df_features_and_targets = pd.read_csv(CLEAN_DATA_PATH + 'merged.csv', index_col=0, parse_dates=True).reset_index(names='Date')
+#df_features_and_targets = pd.read_csv(CLEAN_DATA_PATH + 'merged.csv', index_col=0, parse_dates=True).reset_index(names='Date')
 
 def date_split(df, split_date='1980-01-01'):
     '''
@@ -17,8 +17,7 @@ def date_split(df, split_date='1980-01-01'):
     '''
     #df = df
     # split based on date
-    df_train, df_test = df[df['Date'] <
-                            split_date], df[df['Date'] >= split_date]
+    df_train, df_test = df[df['Date'] < split_date], df[df['Date'] >= split_date]
     # split training data
     X_train = df_train.drop(REMOVE_LIST, axis=1)
     y_train = df_train[[TARGET]]
@@ -36,9 +35,12 @@ def standard_split(df):
     return X_train, y_train, X_test, y_test
 
 
-def split_and_save(split_fn, paths):
+def split_and_save(df_features, split_fn, paths):
+    '''
+    Execute the provided split function and save each of the resultant dataframes
+    '''
     # split data
-    X_train, y_train, X_test, y_test = split_fn(df_features_and_targets)
+    X_train, y_train, X_test, y_test = split_fn(df_features)
     # standardize
     #X_train, X_test = standardize(X_train, X_test)
 
@@ -57,20 +59,24 @@ def split_and_save(split_fn, paths):
         raise ex
 
 
-def create_training_data():           
+def create_training_data(df_features, feature_selection_method=None):           
     print("Creating date split training data")
-    date_names = ['X_train_date.csv', 'y_train_date.csv', 
-                    'X_test_date.csv', 'y_test_date.csv']
+    
+    prefixes = ['X_train', 'y_train', 'X_test', 'y_test']
+    names = [f'{p}_{feature_selection_method}' if feature_selection_method else p  for p in prefixes]
+        
+    # ['X_train_date.csv', 'y_train_date.csv', 'X_test_date.csv', 'y_test_date.csv']
+    date_names = [f'{name}_date.csv' for name in names]        
     date_paths = [TRAINING_DATA_PATH + fname for fname in date_names]
     if not os.path.exists(date_paths[0]):
-        split_and_save(date_split, date_paths)
+        split_and_save(df_features, date_split, date_paths)
 
     print("Creating standard split training data")
-    standard_fnames = ['X_train_std.csv', 'y_train_std.csv', 
-                        'X_test_std.csv', 'y_test_std.csv']
+    # ['X_train_std.csv', 'y_train_std.csv', 'X_test_std.csv', 'y_test_std.csv']
+    standard_fnames = [f'{name}_std.csv' for name in names]    
     standard_paths = [TRAINING_DATA_PATH + fname for fname in standard_fnames]
     if not os.path.exists(standard_paths[0]):
-        split_and_save(standard_split, standard_paths)
+        split_and_save(df_features, standard_split, standard_paths)
 
 
 def standardize(X_train, X_test):
@@ -96,6 +102,8 @@ def standardize(X_train, X_test):
     return to_df(X_train_scaled, X_train), to_df(X_test_scaled, X_test)
 
 
+def get_df(path):
+    return pd.read_csv(path, index_col=0, parse_dates=True).reset_index(names='Date')
 
 
 def split_data(split_option):
@@ -105,10 +113,18 @@ def split_data(split_option):
     if not os.path.isdir(TRAINING_DATA_PATH):
         os.mkdir(TRAINING_DATA_PATH)
 
-    if split_option in ['train', 'all']:
-        create_training_data()
-        #split_option('multpl_clean.csv', 'econ_multpl.csv')
-        #CleanMultpl().clean()
+    # we'll get rid of this one eventually
+    if split_option in ['original', 'all']:
+        df = get_df(CLEAN_DATA_PATH + 'merged.csv')
+        create_training_data(df)
+       
+    if split_option in ['lasso', 'all']:
+        df = get_df(FEATURE_DATA_PATH + 'features_lasso.csv')
+        create_training_data(df, 'lasso')
+        
+    if split_option in ['pca', 'all']:
+        df = get_df(FEATURE_DATA_PATH + 'features_pca.csv')
+        create_training_data(df, 'PCA')
     
 
 '''
@@ -119,7 +135,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # pass an arg using either "-do" or "--download_option"
     parser.add_argument('-so', '--split_option',
-                        help='Which split option? [train|all] Default is all',
+                        help='Which split option? [lasso|pca|original|all] Default is all',
                         default="all",
                         required=False)
     args = parser.parse_args()

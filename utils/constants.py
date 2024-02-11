@@ -5,6 +5,7 @@ DEFAULT_OBSERVATION_START = '1/1/1871'
 RAW_DATA_PATH = './raw_data/'
 CLEAN_DATA_PATH = './clean_data/'
 TRAINING_DATA_PATH = './training_data/'
+FEATURE_DATA_PATH = './feature_data/'
 
 # Randomization
 SEED = 42
