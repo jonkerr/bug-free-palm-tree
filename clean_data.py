@@ -63,7 +63,7 @@ def merge_data(out_file):
 
         # determine start date to minimize na cols
         # this would be a key area to adjust to get different data sets
-        df = df[df.index >= '1919-01-01']
+        df = df[df.index >= POST_CLEANING_START_DATE]
 
         # cols to explicitly keep (maybe ffil or something?)
         # keep = ['case Shiller Home Price Index','S&P500 Earnings']

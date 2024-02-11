@@ -1,5 +1,6 @@
 # Adjust to get less FRED data
 DEFAULT_OBSERVATION_START = '1/1/1871'
+POST_CLEANING_START_DATE = '1919-01-01'
 
 # Pipeline data folders
 RAW_DATA_PATH = './raw_data/'
