@@ -91,7 +91,8 @@ def stationarize_data(df, threshold=0.01, max_non_stationary_cols=10):
         need_diff = []
 
         # Check ADF test p-value for each column
-        for col in df.drop(columns=CANDIDATE_TARGETS).columns:
+#        for col in df.drop(columns=['Date']).columns:
+        for col in df.columns:
             result = adfuller(df[col])
             if result[1] > threshold:
                 need_diff.append(col)

@@ -10,7 +10,8 @@ TRAINING_DATA_PATH = './training_data/'
 SEED = 42
 
 # Possible training targets
-CANDIDATE_TARGETS = ['bear', 'correction','Regime']
+#CANDIDATE_TARGETS = ['bear', 'correction','Regime']
+CANDIDATE_TARGETS = ['bear', 'correction']
 TARGET = 'bear'
 REMOVE_LIST = [*CANDIDATE_TARGETS, 'Date']
 

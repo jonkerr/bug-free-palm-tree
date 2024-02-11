@@ -131,7 +131,7 @@ def download(download_option):
     if download_option in ['series', 'all']:
         # Naomi, we need some discussion on where ids.csv comes from
         data['ids'] = pd.read_csv('curated_data/ids.csv')
-        get_fred_series_data('econ_fred.csv', data['ids'].id)
+        get_fred_series_data('econ_fred.csv', data['ids'].id, DEFAULT_OBSERVATION_START)
     if download_option in ['econ', 'all']:
         data['multpl'] = get_multpl_data('econ_multpl.csv')
 

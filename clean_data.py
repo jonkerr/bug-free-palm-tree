@@ -17,34 +17,6 @@ from utils.feature_engineering import *
 # set data path for wrappers
 out_data_path = CLEAN_DATA_PATH
 
-"""
-class EfficientDataCleaner(ABC):
-    def __init__(self, out_file) -> None:
-        super().__init__()
-        self.path = CLEAN_DATA_PATH + out_file
-
-    def clean(self):
-        '''
-        Only clean if the target file doesn't already exist
-        Delete file if exception during clean()
-        '''
-        if os.path.exists(self.path):
-            return
-        try:
-            self._clean()
-        except Exception as ex:
-            print('Failed to create ', self.path)
-            # print(ex)
-            # clean up failed clean
-            if os.path.exists(self.path):
-                os.remove(self.path)
-            raise ex
-
-    @abstractmethod
-    def _clean(self):
-        pass
-"""
-
 
 @file_check_decorator(out_data_path)
 def clean_multpl(out_file, in_file):
@@ -75,14 +47,14 @@ def merge_data(out_file):
         paths = [
             RAW_DATA_PATH + 'econ_fred.csv',
             CLEAN_DATA_PATH + 'multpl_clean.csv',
-            RAW_DATA_PATH + 'recession.csv'        
+#            RAW_DATA_PATH + 'recession.csv'        
         ]
         # read and merge files (both use date as index)
         dfs = [pd.read_csv(path, index_col=0, parse_dates=True)
                for path in paths]
 
         df = pd.concat(dfs, axis=1)
-
+        
         # we should decide between "S&P500 Price" and	"S&P500 Price - Inflation Adjusted"
         # using both would be colinear.  For now, let's use inflation adjusted only
         df = df.drop(columns=['S&P500 Price'])
@@ -111,39 +83,6 @@ def merge_data(out_file):
         
         # save
         df.to_csv(out_file)
-
-"""
-class MergeData(EfficientDataCleaner):
-    '''
-    Merge multiple files and deal with nulls
-    '''
-
-    def __init__(self, ) -> None:
-        super().__init__(out_file)
-        self.targets = ['bear', 'correction']
-
-    def _clean(self):
-        pass
-"""
-
-    
-"""
-class TrainingData():
-    '''
-    This class is a little different from the others as it's not so much cleaning as just splitting the data to be used in later steps.
-    As such, it doesn't need to inherit from the same base class.
-    '''
-
-    def __init__(self) -> None:
-        # specify the files to remove
-        self.remove_list = ['Date', 'bear', 'correction']
-        # specify the target
-        self.target = 'bear'
-        self.df = pd.read_csv(CLEAN_DATA_PATH + 'merged.csv',
-                              index_col=0, parse_dates=True).reset_index(names='Date')
-        self.training_path = './training_data/'
-"""
-
 
 
 '''
