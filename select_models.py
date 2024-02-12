@@ -250,10 +250,10 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test):
 
     # Dictionary to store metrics
     metrics = {
+        "recall": recall_score,
         "roc_auc": roc_auc_score,
         "accuracy": accuracy_score,
         "precision": precision_score,
-        "recall": recall_score,
         "f1": f1_score,
     }
 
@@ -311,7 +311,7 @@ def get_metrics(
         results[model_name] = metrics
 
     df = pd.DataFrame(results).T
-    df = df.sort_values(by=scoring, ascending=False)
+    df = df.sort_values(by='recall', ascending=False)
     return df
 
 
