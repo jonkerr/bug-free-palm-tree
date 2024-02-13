@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
+from sklearn.decomposition import PCA
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import Lasso, LassoCV
@@ -90,9 +91,31 @@ def select_features_pca(out_file):
     df = df_features_and_targets.copy()
 
     # do feature selection
+    # selected n_components based on cumulative explained variance 
+    # visualization in jupyter notebook
+    X = df.drop(CANDIDATE_TARGETS, axis=1)
+    targets_df = df[[*CANDIDATE_TARGETS]]
+    targets_df.index = df.index
+
+
+    # Scale features
+    sc = StandardScaler()
+    X_scaled = sc.fit_transform(X)
+
+    pca = PCA(n_components=40)
+    X_pca = pca.fit_transform(X_scaled)
+    pca_df = pd.DataFrame(data=X_pca, columns=[f'PC{i+1}' for i in range(40)])
+
+    # pca_df.head()
+
+    # Reattach the date index
+    pca_df.index = df.index
+
+    # Add the target variables back
+    pca_df = pca_df.join(targets_df)
 
     # save
-    df.to_csv(out_file)
+    pca_df.to_csv(out_file)
 
 
 """
