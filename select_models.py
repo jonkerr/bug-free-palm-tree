@@ -40,20 +40,26 @@ import xgboost as xgb
 from utils.constants import (
     SEED, 
     TRAINING_DATA_PATH, 
-    SCORING
+    SCORING,
+    SPLIT_TYPE,
+    FEATURE_TYPE
 )
 
-def get_training_data(split_type="std"):
+def get_training_data(split_type=SPLIT_TYPE, feature_type=FEATURE_TYPE):
     """
     need to get files in the form:
     paths = ['X_train_std.csv', 'y_train_std.csv', 'X_test_std.csv', 'y_test_std.csv']
     """
 
     def format_name(fname):
+        if feature_type:
+            return f"{TRAINING_DATA_PATH}{fname}_{feature_type}_{split_type}.csv"
         return f"{TRAINING_DATA_PATH}{fname}_{split_type}.csv"
 
     files = ["X_train", "y_train", "X_test", "y_test"]
     data = {fname: pd.read_csv(format_name(fname)) for fname in files}
+    if feature_type:
+        print(f"**Data is using the '{feature_type}' feature type**")
     print(f"**Data is using the '{split_type}' split type**\n")
     return data
 

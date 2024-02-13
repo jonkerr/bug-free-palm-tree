@@ -124,7 +124,7 @@ def split_data(split_option):
         
     if split_option in ['pca', 'all']:
         df = get_df(FEATURE_DATA_PATH + 'features_pca.csv')
-        create_training_data(df, 'PCA')
+        create_training_data(df, 'pca')
     
 
 '''

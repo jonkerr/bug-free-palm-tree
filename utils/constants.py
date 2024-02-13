@@ -19,3 +19,5 @@ REMOVE_LIST = [*CANDIDATE_TARGETS, 'Date']
 
 # Training and evaluation
 SCORING = "roc_auc"  # options: 'accuracy', 'precision', 'recall', 'f1', 'roc_auc'
+SPLIT_TYPE = "std"
+FEATURE_TYPE = "lasso"
