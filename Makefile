@@ -4,14 +4,14 @@ all: predict
 
 # Targets for removing data
 removeraw:
-	rd /s /q raw_data
+	rm -fr raw_data
 
 removecleaned:
-	rd /s /q clean_data
+	rm -fr clean_data
 
 removemodeldata:
-	rd /s /q training_data
-	rd /s /q model_data
+	rm -fr training_data
+	rm -fr model_data
 
 removeall: removemodeldata removecleaned removeraw
 
