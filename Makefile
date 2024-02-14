@@ -6,14 +6,17 @@ all: predict
 removeraw:
 	rm -fr raw_data
 
-removecleaned:
+removecleaned: removefeatures removemodeldata
 	rm -fr clean_data
 
 removemodeldata:
-	rm -fr training_data
-	rm -fr model_data
+	rm -fr training_data 
+#	rm -fr model_data
 
-removeall: removemodeldata removecleaned removeraw
+removefeatures:
+	rm -fr feature_data
+
+removeall: removemodeldata removefeatures removecleaned removeraw	
 
 # Targets for building things
 getdata:
@@ -37,6 +40,6 @@ predict: selectmodels
 # Composite targets for iterative development
 reraw: removeraw getdata
 refresh: removeall all
-reclean: removecleaned modeldata
+reclean: removecleaned clean
 remodel: removemodeldata selectmodels
 remodelc: removemodeldata removecleaned selectmodels
