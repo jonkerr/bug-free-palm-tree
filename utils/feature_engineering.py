@@ -203,3 +203,26 @@ def add_pct_change(df, market_col='S&P500 Price - Inflation Adjusted'):
     df['pct_change'] = df[market_col].pct_change(fill_method=None)
     df['pct_change'] = df['pct_change'].apply(lambda x: round(x*100, 2))
     return df
+
+
+def standardize(X_train, X_test):
+    '''
+    Use StandardScaler to scale the data for models that require it.
+
+    Parameters:
+    - X_train: The training features.
+    - X_test: The test features. Optional if you only want to scale the training data.
+
+    Returns:
+    - X_train_scaled: The scaled training features as a dataframe.
+    - X_test_scaled: The scaled test features as a dataframe.
+    '''
+    sc = StandardScaler()
+    X_train_scaled = sc.fit_transform(X_train)
+    X_test_scaled = sc.transform(X_test)
+
+    # transform returns an np.array.  We need a dataframe.
+    def to_df(df_scaled, df):
+        return pd.DataFrame(df_scaled, index=df.index, columns=df.columns)
+
+    return to_df(X_train_scaled, X_train), to_df(X_test_scaled, X_test)

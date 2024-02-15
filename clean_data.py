@@ -46,13 +46,16 @@ def merge_data(out_file):
         paths = [
             RAW_DATA_PATH + 'econ_fred.csv',
             CLEAN_DATA_PATH + 'multpl_clean.csv',
-#            RAW_DATA_PATH + 'recession.csv'        
+            RAW_DATA_PATH + 'recession.csv'        
         ]
         # read and merge files (both use date as index)
         dfs = [pd.read_csv(path, index_col=0, parse_dates=True)
                for path in paths]
-
+        
         df = pd.concat(dfs, axis=1)
+
+        # Regime has trailing nulls.  We need to drop them or we'll lose the column
+        df.dropna(subset = ['Regime'], inplace=True)
         
         # we should decide between "S&P500 Price" and	"S&P500 Price - Inflation Adjusted"
         # using both would be colinear.  For now, let's use inflation adjusted only
@@ -65,9 +68,6 @@ def merge_data(out_file):
         # this would be a key area to adjust to get different data sets
         df = df[df.index >= POST_CLEANING_START_DATE]
 
-        # cols to explicitly keep (maybe ffil or something?)
-        # keep = ['case Shiller Home Price Index','S&P500 Earnings']
-
         # remove empty columns.
         df, _ = remove_variables(df.copy(), n=10)
 
@@ -77,9 +77,10 @@ def merge_data(out_file):
         # Iteratively difference the time series until the number of non-stationary columns is less than a specified threshold.
         df, _ = stationarize_data(df, threshold=0.01)
         
-        # shift the bear markets back a month to promote trying to predict bear markets, one month in the future
-        df['bear'] = df['bear'].shift(-1).ffill()
-        
+        # shift the targets back a month to promote training to predict one month in the future
+        for target in CANDIDATE_TARGETS:
+            df[target] = df[target].shift(-1).ffill()
+                
         # save
         df.to_csv(out_file)
 
@@ -99,10 +100,6 @@ def clean_data(clean_option):
         merge_data('merged.csv')
         #MergeData().clean()
 
-    if clean_option in ['train', 'all']:
-        pass
-        #TrainingData().create_training_data()
-
 
 '''
 Handle command line arguments
@@ -112,7 +109,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # pass an arg using either "-do" or "--download_option"
     parser.add_argument('-co', '--clean_option',
-                        help='Which file to clean? [multpl|merge|train] Default is all',
+                        help='Which file to clean? [multpl|merge] Default is all',
                         default="all",
                         required=False)
     args = parser.parse_args()

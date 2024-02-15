@@ -6,17 +6,16 @@ all: predict
 removeraw:
 	rm -fr raw_data
 
-removecleaned: removefeatures removemodeldata
+removecleaned: removesplit
 	rm -fr clean_data
 
-removemodeldata:
-	rm -fr training_data 
-#	rm -fr model_data
+removesplit: removefeatures
+	rm -fr split_data 
 
 removefeatures:
 	rm -fr feature_data
 
-removeall: removemodeldata removefeatures removecleaned removeraw	
+removeall: removefeatures removesplit removecleaned removeraw	
 
 # Targets for building things
 getdata:
@@ -25,13 +24,13 @@ getdata:
 clean: getdata
 	python clean_data.py
 
-features: clean
-	python select_features.py
-
-split: features
+split: clean
 	python split_data.py
 
-selectmodels: split
+features: split
+	python select_features.py
+
+selectmodels: features
 	python select_models.py
 
 predict: selectmodels
@@ -41,5 +40,7 @@ predict: selectmodels
 reraw: removeraw getdata
 refresh: removeall all
 reclean: removecleaned clean
-remodel: removemodeldata selectmodels
-remodelc: removemodeldata removecleaned selectmodels
+resplit: removesplit split
+remodel: removefeatures selectmodels
+remodelc: removecleaned selectmodels
+recleana: removecleaned all

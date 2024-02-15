@@ -40,21 +40,30 @@ import xgboost as xgb
 from utils.constants import (
     SEED, 
     TRAINING_DATA_PATH, 
+    SPLIT_DATA_PATH,
     SCORING,
     SPLIT_TYPE,
-    FEATURE_TYPE
+    FEATURE_TYPE,
+    TARGET
 )
 
-def get_training_data(split_type=SPLIT_TYPE, feature_type=FEATURE_TYPE):
+def get_training_data(split_type=SPLIT_TYPE, feature_type=FEATURE_TYPE, target=TARGET):
     """
     need to get files in the form:
     paths = ['X_train_std.csv', 'y_train_std.csv', 'X_test_std.csv', 'y_test_std.csv']
     """
 
     def format_name(fname):
-        if feature_type:
-            return f"{TRAINING_DATA_PATH}{fname}_{feature_type}_{split_type}.csv"
-        return f"{TRAINING_DATA_PATH}{fname}_{split_type}.csv"
+        
+        name = fname
+        if feature_type is not None and not 'y_' in name:
+            name += "_" + feature_type
+            
+        return f"{SPLIT_DATA_PATH}{name}_{target}_{split_type}.csv"
+                
+        #if feature_type:
+        #    return f"{TRAINING_DATA_PATH}{fname}_{feature_type}_{split_type}.csv"
+        #return f"{TRAINING_DATA_PATH}{fname}_{split_type}.csv"
 
     files = ["X_train", "y_train", "X_test", "y_test"]
     data = {fname: pd.read_csv(format_name(fname)) for fname in files}
@@ -504,16 +513,16 @@ def run_comparison(include_baseline=True, include_stage_2=True, rehydrate=False,
     if save_metrics:
         s1_tuned_metrics.to_csv("s1_tuned_metrics.csv")
 
-    # get the probability predictions for each model
-    train_probs, test_probs = get_probs(s1_tuned_models)
-
-    # train_probs.to_csv("train_probs.csv", index=False)
-    # test_probs.to_csv("test_probs.csv", index=False)
-
-    # train_probs = pd.read_csv("train_probs.csv")
-    # test_probs = pd.read_csv("test_probs.csv")
-
     if include_stage_2:
+        # get the probability predictions for each model
+        train_probs, test_probs = get_probs(s1_tuned_models)
+
+        # train_probs.to_csv("train_probs.csv", index=False)
+        # test_probs.to_csv("test_probs.csv", index=False)
+
+        # train_probs = pd.read_csv("train_probs.csv")
+        # test_probs = pd.read_csv("test_probs.csv")
+
         # get tuned models for stage 2
         print("Stage 2: Tuning models on probability data...\n")
         s2_tuned_models = get_tuned_models(param_grids, X_train=train_probs, stage=2)

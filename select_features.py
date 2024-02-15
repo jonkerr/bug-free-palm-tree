@@ -8,130 +8,127 @@ from sklearn.linear_model import Lasso, LassoCV
 from sklearn.model_selection import TimeSeriesSplit
 
 from utils.decorators import file_check_decorator
-from utils.constants import FEATURE_DATA_PATH, CLEAN_DATA_PATH, TARGET, CANDIDATE_TARGETS
+from utils.constants import FEATURE_DATA_PATH, CLEAN_DATA_PATH, TARGET, CANDIDATE_TARGETS, SPLIT_DATA_PATH
+
+import warnings
 
 # set data path for wrappers
 out_data_path = FEATURE_DATA_PATH
 
+"""
 df_features_and_targets = pd.read_csv(
     CLEAN_DATA_PATH + "merged.csv", index_col=0, parse_dates=True
 )
+"""
 
 
-@file_check_decorator(out_data_path)
-def select_features_lasso(out_file):
-    # start with clean df
-    df = df_features_and_targets.copy()
-
-    # There is a problem with the Lasso regression on our data that was different
-    # from Naomi's data when she ran the same code. So, for now, I'll just set the columns
-    # to the ones that were selected in Naomi's code. The problem is that the Lasso code here
-    # selects 0-4 features max, which is not enough to train a model.
-    # hardcoding the columns that were selected in Naomi's code in
-    # EDA_Spike/Part_5_Model_All_v0_5_US.ipynb
-
-    # # Prepare features and target
-    # X_train = df.drop(CANDIDATE_TARGETS, axis=1)
-    # y_train = df[CANDIDATE_TARGETS[0]]
-
-    # # Scale features
-    # sc = StandardScaler()
-    # X_train_scaled = sc.fit_transform(X_train)
-
-    # # Feature selection with LassoCV
-    # alphas = np.logspace(-5, 5, 100)
-    # tscv = TimeSeriesSplit(n_splits=5)
-    # lasso_cv = LassoCV(alphas=alphas, cv=tscv, max_iter=10000, tol=0.001)
-    # lasso_cv.fit(X_train_scaled, y_train)
-
-    # # Identify selected features
-    # selected_features = X_train.columns[lasso_cv.coef_ != 0]
-
-    # final_df = X_train[selected_features].copy()
-
-    # # Add the target variable back
-    # final_df[CANDIDATE_TARGETS[0]] = y_train
-    # final_df[CANDIDATE_TARGETS[1]] = df[CANDIDATE_TARGETS[1]]
-  
-    # print("Optimal Alpha:", lasso_cv.alpha_)
-    # print("Coefficients:", lasso_cv.coef_)
-
-    # selected features from EDA_Spike/Part_5_Model_All_v0_5_US.ipynb
-    selected_features = ['A038RC1', 'B042RC1', 'BSCICP03USM665S', 'CAPUTLG3361T3S',
-       'CAPUTLG3364T9S', 'CSCICP03USM665S', 'CUUR0000SEFR', 'CUUR0000SEFV',
-       'HOHWMN02USM065S', 'IB001260M', 'IPNMAT', 'LNS12032197', 'LNS13025701',
-       'MANEMP', 'NDMANEMP', 'PAYEMS', 'PERMIT', 'PERMIT1NSA',
-       'SPASTT01USM657N', 'TB3SMFFM', 'UNRATE', 'USFIRE', 'USPBS', 'W875RX1',
-       'WPU025', 'WPU0278', 'WPU051', 'WPU066', 'WPU071201', 'WPU0812',
-       'WPU1072', 'WPU1081']    
+#@file_check_decorator(out_data_path)
+def select_features_lasso(out_file, split_data):
     
-    lags = ['3M', '6M', '9M', '12M', '18M']
-
-    # Generate new list with lagged feature names
-    selected_lagged_features = [f"{feature}_{lag}_lag" for feature in selected_features for lag in lags]
-
-    # remove the columns that are not in the df
-    invalid_cols = ['BSCICP03USM665S_12M_lag', 'BSCICP03USM665S_18M_lag', 
-        'CSCICP03USM665S_12M_lag', 'CSCICP03USM665S_18M_lag', 'HOHWMN02USM065S_3M_lag', 
-        'HOHWMN02USM065S_6M_lag', 'HOHWMN02USM065S_9M_lag', 'HOHWMN02USM065S_12M_lag', 
-        'HOHWMN02USM065S_18M_lag', 'PERMIT_12M_lag', 'PERMIT_18M_lag', 
-        'SPASTT01USM657N_12M_lag', 'SPASTT01USM657N_18M_lag']
-
-    selected_lagged_features = [col for col in selected_lagged_features if col not in invalid_cols]
+    X_train, y_train, X_test, y_test = split_data
     
+    # Scale features
+    sc = StandardScaler()
+    X_train_scaled = sc.fit_transform(X_train)
+    
+    # Create a Lasso model
+    selected_alpha = 0.7
+    lasso_model = Lasso(alpha = selected_alpha)
+
+    # Fit the Lasso model on the training data
+    lasso_model.fit(X_train_scaled, y_train)
+
+    # Get the selected features
+    selected_features_lasso = X_train.columns[lasso_model.coef_ != 0]
+    
+    X_train_lasso = X_train[selected_features_lasso]
+    X_test_lasso = X_test[selected_features_lasso]
+
     # save
-    final_df = df[[*selected_lagged_features, *CANDIDATE_TARGETS]].copy()
-    final_df.to_csv(out_file)
+    X_train_lasso.to_csv(SPLIT_DATA_PATH + "X_train_" + out_file)
+    X_test_lasso.to_csv(SPLIT_DATA_PATH + "X_test_" + out_file)
 
 
-
-@file_check_decorator(out_data_path)
-def select_features_pca(out_file):
+#@file_check_decorator(out_data_path)
+def select_features_pca(out_file, split_data):
+       
+    X_train, y_train, X_test, y_test = split_data
+    
     # start with clean df
-    df = df_features_and_targets.copy()
+    # df = df_features_and_targets.copy()
 
     # do feature selection
-    # selected n_components based on cumulative explained variance 
+    # selected n_components based on cumulative explained variance
     # visualization in jupyter notebook
+    """
+    Not needed?
+    
     X = df.drop(CANDIDATE_TARGETS, axis=1)
     targets_df = df[[*CANDIDATE_TARGETS]]
     targets_df.index = df.index
-
+    """
 
     # Scale features
     sc = StandardScaler()
-    X_scaled = sc.fit_transform(X)
+    X_train_scaled = sc.fit_transform(X_train)
+    X_test_scaled = sc.transform(X_test)
 
     pca = PCA(n_components=40)
-    X_pca = pca.fit_transform(X_scaled)
-    pca_df = pd.DataFrame(data=X_pca, columns=[f'PC{i+1}' for i in range(40)])
+    X_train_pca = pca.fit_transform(X_train_scaled)
+    X_test_pca = pca.transform(X_test_scaled)
+    
+    pca_train_df = pd.DataFrame(data=X_train_pca, columns=[f'PC{i+1}' for i in range(40)])
+    pca_test_df = pd.DataFrame(data=X_test_pca, columns=[f'PC{i+1}' for i in range(40)])
 
     # pca_df.head()
 
     # Reattach the date index
-    pca_df.index = df.index
+    pca_train_df.index = X_train.index
+    pca_test_df.index = X_test.index
 
     # Add the target variables back
-    pca_df = pca_df.join(targets_df)
+    ## JK: why???
+    #pca_df = pca_df.join(targets_df)
 
     # save
-    pca_df.to_csv(out_file)
+    pca_train_df.to_csv(SPLIT_DATA_PATH + "X_train_" + out_file)
+    pca_test_df.to_csv(SPLIT_DATA_PATH + "X_test_" + out_file)
 
 
 """
 Data pipeline based on work done for Milestone 1: https://github.com/jonkerr/SIADS593
 """
+def get_split_data(target, stype):
+    '''
+    Get X_train, y_train, X_test, y_test associated with a particular split type and target type
 
+    Parameters:
+    - target: One of: [bear, Regime, correction]
+    - stype: One of: [std, date]
 
-def select_features(selection_option):
-    if not os.path.isdir(FEATURE_DATA_PATH):
-        os.mkdir(FEATURE_DATA_PATH)
+    Returns:
+    - X_train, y_train, X_test, y_test associated with a particular split type and target type
+    '''
+    prefixes = ['X_train', 'y_train', 'X_test', 'y_test']
+    names = [f'{p}_{target}_{stype}.csv' for p in prefixes]
+    return [pd.read_csv(SPLIT_DATA_PATH+fname, index_col=0, parse_dates=True).reset_index(names='Date') for fname in names]
+    
 
-    if selection_option in ["lasso", "all"]:
-        select_features_lasso("features_lasso.csv")
+def select_features(selection_option, split_targets, split_types):
+#    if not os.path.isdir(FEATURE_DATA_PATH):
+#        os.mkdir(FEATURE_DATA_PATH)
 
-    if selection_option in ["pca", "all"]:
-        select_features_pca("features_pca.csv")
+    for target in split_targets:
+        for stype in split_types:
+            split_data = None
+            with warnings.catch_warnings(action="ignore"):
+                split_data = get_split_data(target, stype) 
+                       
+            if selection_option in ["lasso", "all"]:
+                select_features_lasso(f"lasso_{target}_{stype}.csv", split_data)
+
+            if selection_option in ["pca", "all"]:
+                select_features_pca(f"pca_{target}_{stype}.csv", split_data)
 
 
 """
@@ -143,11 +140,45 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # pass an arg using either "-so" or "--selection_option"
     parser.add_argument(
-        "-co",
-        "--clean_option",
+        "-fo",
+        "--feature_option",
         help="Which file to clean? [lasso|pca|all] Default is all",
         default="all",
         required=False,
     )
+    
+    parser.add_argument(
+        '-star',
+        '--split_target',
+        help='Which split target? [bear|rec|all] Default is all',
+        default="all",
+        required=False
+    )
+    
+    parser.add_argument(
+        '-sty', '--split_type',
+        help='Which split type? [date|std|all] Default is std',
+        default="std",
+        required=False
+    )
+    
     args = parser.parse_args()
-    select_features(args.clean_option)
+    
+    split_targets = [] 
+    if args.split_target == 'all':
+        split_targets = ['bear','Regime']
+    elif args.split_target == 'bear':
+        split_targets = ['bear']
+    elif args.split_target == 'rec':
+        split_targets = ['Regime']
+        
+    split_types = []
+    if args.split_type == 'all':
+        split_types = ['date','std']
+    elif args.split_type == 'std':
+        split_types = ['std']
+    elif args.split_target == 'date':
+        split_types = ['date']
+    
+    
+    select_features(args.feature_option, split_targets, split_types)
