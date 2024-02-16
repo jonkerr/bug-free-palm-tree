@@ -85,8 +85,8 @@ def get_fred_series_data(out_file, ids, observation_start=None):
     dataset = {}
     start_time = time.time()
 
-    # # Remove these IDs If you use "the stock-based bear indicator" as a target
-    # ids = [item for item in ids if item not in {'USREC', 'SPASTT01USM657N', 'SPASTT01USM661N'}]
+    # Remove these IDs If you use "the stock-based bear indicator" as a target
+    ids = [item for item in ids if item not in {'USREC', 'SPASTT01USM657N', 'SPASTT01USM661N'}]
 
     for count, i in enumerate(ids):
         if count % 50 == 0:
