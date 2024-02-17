@@ -401,6 +401,7 @@ def rehydrate_models(json_file):
         best_model_params = json.load(file)
             
     for model in baseline_models:
+        model = clone(model) # clone to avoid side-effects
         model_name = model.__class__.__name__      
         if model_name in best_model_params.keys():
             best_params = best_model_params[model_name]
