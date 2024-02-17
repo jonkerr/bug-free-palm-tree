@@ -512,7 +512,7 @@ def run_comparison(data, include_baseline=True, include_stage_2=True, rehydrate=
 
     if include_baseline:
         print("Stage 1: Training and evaluating baseline_models on training data...")
-        s1_base_metrics = get_metrics(baseline_models)
+        s1_base_metrics = get_metrics(baseline_models, data)
         print(s1_base_metrics)
         if save_metrics:
             s1_base_metrics.to_csv("s1_baseline_metrics.csv")
