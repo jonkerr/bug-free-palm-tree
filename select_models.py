@@ -73,7 +73,7 @@ def get_training_data(split_type=SPLIT_TYPE, feature_type=FEATURE_TYPE, target=T
     return data
 
 
-data = get_training_data()
+#data = get_training_data()
 
 baseline_models = [
     LogisticRegression(random_state=SEED),
@@ -294,7 +294,7 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test):
     
 
 def get_metrics(
-    models, X_train=data["X_train"], X_test=data["X_test"], scoring=SCORING
+    models, data, X_train=None, X_test=None, scoring=SCORING
 ):
     """
     Get the evaluation metrics for each model.
@@ -308,7 +308,12 @@ def get_metrics(
     Returns:
     - df: A dataframe containing the evaluation metrics for each model.
     """
-
+    
+    if X_train is None:
+        X_train = data["X_train"]
+    if X_test is None:        
+        X_test = data["X_test"]
+        
     y_train, y_test = data["y_train"], data["y_test"]
 
     results = {}
@@ -331,7 +336,7 @@ def get_metrics(
 
 
 @timing_decorator
-def tune_model(model, param_grid, X_train=data["X_train"], scoring=SCORING):
+def tune_model(model, param_grid, data, X_train=None, scoring=SCORING):
     """
     Tune the hyperparameters of a model using GridSearchCV. Default scoring is optimized for ROC-AUC.
 
@@ -348,7 +353,9 @@ def tune_model(model, param_grid, X_train=data["X_train"], scoring=SCORING):
     # Clone the model to avoid side-effects like changing the baseline model list
     model = clone(model)
     model_name = model.__class__.__name__
-
+    
+    if X_train is None:
+        X_train = data["X_train"]
     y_train = data["y_train"].values.ravel()
 
     if model_name in model_needs_scaling:
@@ -405,7 +412,7 @@ def rehydrate_models(json_file):
             
     
 
-def get_tuned_models(param_grids, X_train=data["X_train"], scoring=SCORING, stage=1, rehydrate=False):
+def get_tuned_models(param_grids, data, X_train=None, scoring=SCORING, stage=1, rehydrate=False):
     """
     Tune the hyperparameters of the baseline models and return the best models.
 
@@ -419,7 +426,10 @@ def get_tuned_models(param_grids, X_train=data["X_train"], scoring=SCORING, stag
     """
     json_file = f'stage{stage}_params.json'
     tuned_models, tuned_model_names, best_model_params = rehydrate_models(json_file) if rehydrate else ([],[], {})
-                
+               
+    if X_train is None:
+        X_train=data["X_train"]
+    
     for model in baseline_models:
         model_class = model.__class__
         model_name = model_class.__name__
@@ -429,7 +439,7 @@ def get_tuned_models(param_grids, X_train=data["X_train"], scoring=SCORING, stag
             continue
         
         param_grid = param_grids[model_class]
-        best_model, best_params = tune_model(model, param_grid, X_train, scoring=scoring)
+        best_model, best_params = tune_model(model, param_grid, data, X_train, scoring=scoring)
         
         tuned_models.append(best_model)
         print(f"{len(tuned_models)}/{len(baseline_models)} models tuned\n")
@@ -448,7 +458,7 @@ def get_tuned_models(param_grids, X_train=data["X_train"], scoring=SCORING, stag
     return tuned_models
 
 
-def get_probs(models):
+def get_probs(models, data):
     """
     Collect probability predictions from each model for the positive class.
     This is used as the input for the stage 2 models where we are trying to
@@ -494,11 +504,11 @@ def get_probs(models):
 
 
 @timing_decorator
-def run_comparison(include_baseline=True, include_stage_2=True, rehydrate=False, save_metrics=False):
+def run_comparison(data, include_baseline=True, include_stage_2=True, rehydrate=False, save_metrics=False):
 
     # if we are exporting the tuned models for prediction, consider making a dictionary
     print("Stage 1: Tuning models on training data...\n")
-    s1_tuned_models = get_tuned_models(param_grids, rehydrate=rehydrate)
+    s1_tuned_models = get_tuned_models(param_grids, data, rehydrate=rehydrate)
 
     if include_baseline:
         print("Stage 1: Training and evaluating baseline_models on training data...")
@@ -508,7 +518,7 @@ def run_comparison(include_baseline=True, include_stage_2=True, rehydrate=False,
             s1_base_metrics.to_csv("s1_baseline_metrics.csv")
 
     print("\nStage 1: Training and evaluating s1_tuned_models on training data...")
-    s1_tuned_metrics = get_metrics(s1_tuned_models)
+    s1_tuned_metrics = get_metrics(s1_tuned_models, data)
     print(s1_tuned_metrics)
     if save_metrics:
         s1_tuned_metrics.to_csv("s1_tuned_metrics.csv")
@@ -525,17 +535,17 @@ def run_comparison(include_baseline=True, include_stage_2=True, rehydrate=False,
 
         # get tuned models for stage 2
         print("Stage 2: Tuning models on probability data...\n")
-        s2_tuned_models = get_tuned_models(param_grids, X_train=train_probs, stage=2)
+        s2_tuned_models = get_tuned_models(param_grids, data, X_train=train_probs, stage=2)
 
         if include_baseline:
             print("Stage 2: Training and evaluating baseline_models on probability data...")
-            s2_base_metrics = get_metrics(baseline_models, X_train=train_probs, X_test=test_probs)
+            s2_base_metrics = get_metrics(baseline_models, data, X_train=train_probs, X_test=test_probs)
             print(s2_base_metrics)
             if save_metrics:
                 s2_base_metrics.to_csv("s2_baseline_metrics.csv")
 
         print("\nStage 2: Training and evaluating s2_tuned_models on probability data...")
-        s2_tuned_metrics = get_metrics(s2_tuned_models, X_train=train_probs, X_test=test_probs)
+        s2_tuned_metrics = get_metrics(s2_tuned_models, data, X_train=train_probs, X_test=test_probs)
         print(s2_tuned_metrics)
         if save_metrics:
             s2_tuned_metrics.to_csv("s2_tuned_metrics.csv")
@@ -543,5 +553,98 @@ def run_comparison(include_baseline=True, include_stage_2=True, rehydrate=False,
 # full run
 #run_comparison()
 
-# fast run
-run_comparison(include_baseline=False, include_stage_2=False, rehydrate=True, save_metrics=False)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    # pass an arg using either "-so" or "--selection_option"
+    parser.add_argument(
+        "-rt",
+        "--run_type",
+        help="While run type?  Stage 1 and 2 use preexisting model params.  Full regenerates.  Targets: [stg1|stg2|full] Default is stg1",
+        default="stg1",
+        required=False,
+    )
+    parser.add_argument(
+        "-ib",
+        "--include_baseline",
+        help="Include baseline?  [y|n] Default is n",
+        default="n",
+        required=False,
+    )
+    
+    parser.add_argument(
+        '-sty', '--split_type',
+        help='Which split type? [date|std] Default is std',
+        default="std",
+        required=False
+    )
+    
+    parser.add_argument(
+        "-fo",
+        "--feature_option",
+        help="Which file to clean? [lasso|pca|none|all] Default is none",
+        default="none",
+        required=False,
+    )
+    
+    parser.add_argument(
+        '-star',
+        '--split_target',
+        help='Which split target? [bear|rec|all] Default is bear',
+        default="bear",
+        required=False
+    )
+
+    # default selection params
+    include_baseline=False
+    include_stage_2=False
+    rehydrate=True
+    save_metrics=False
+    
+    # default splits
+    split_type = 'std'
+    target=TARGET
+    
+    # Parse and process args
+    args = parser.parse_args()
+    
+    # run type
+    if args.run_type == 'full':
+        rehydrate = False
+        include_stage_2 = True
+    if args.run_type == 'stg2':
+        include_stage_2 = True
+        
+    # baseline
+    if args.include_baseline == 'y':
+        include_baseline = True
+
+    # split type
+    split_type = args.split_type
+
+    # feature selection approach    
+    feature_options = []
+    if args.feature_option in ['lasso','all']:
+        feature_options.append('lasso')
+    if args.feature_option in ['pca','all']:
+        feature_options.append('pca')
+    if args.feature_option in ['none','all']:
+        feature_options.append(None)
+    
+
+    # target
+    split_targets = [] 
+    if args.split_target in ['bear','all']:
+        split_targets.append('bear')
+    if args.split_target in ['rec','all']:
+        split_targets.append('Regime')
+
+
+    # put it all together
+    for feature in feature_options:
+        for target in split_targets:    
+            data = get_training_data(split_type=split_type, feature_type=feature, target=target)  
+            run_comparison(data, include_baseline=include_baseline, include_stage_2=include_stage_2, rehydrate=rehydrate, save_metrics=save_metrics)
