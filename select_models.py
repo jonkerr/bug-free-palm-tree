@@ -287,7 +287,7 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test):
             score = metric_func(y_test, Y_pred_proba)
         else:
             score = metric_func(y_test, Y_pred)
-        results[metric_name] = round(score, 3)
+        results[metric_name] = round(score, 4)
 
     return results
 
@@ -370,7 +370,7 @@ def tune_model(model, param_grid, data, X_train=None, scoring=SCORING):
 
     print(f"model: {model_name}")
     print(f"best params: {best_params}")
-    print(f"best {scoring} score: {round(best_score, 3)}")
+    print(f"best {scoring} score: {round(best_score, 4)}")
 
     best_model = model.set_params(**best_params)
     return best_model, best_params
