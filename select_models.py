@@ -401,7 +401,6 @@ def rehydrate_models(json_file):
         best_model_params = json.load(file)
             
     for model in baseline_models:
-        model = clone(model) # clone to avoid side-effects
         model_name = model.__class__.__name__      
         if model_name in best_model_params.keys():
             best_params = best_model_params[model_name]
@@ -411,7 +410,7 @@ def rehydrate_models(json_file):
             
     return tuned_models, tuned_model_names, best_model_params
             
-    
+import pickle    
 
 def get_tuned_models(param_grids, data, X_train=None, scoring=SCORING, stage=1, rehydrate=False):
     """
@@ -425,8 +424,9 @@ def get_tuned_models(param_grids, data, X_train=None, scoring=SCORING, stage=1, 
     Returns:
     - tuned_models: A list of the best models with the optimized hyperparameters.
     """
-    json_file = f'stage{stage}_params.json'
-    tuned_models, tuned_model_names, best_model_params = rehydrate_models(json_file) if rehydrate else ([],[], {})
+    #json_file = f'stage{stage}_params.json'
+    #tuned_models_old, tuned_model_names, best_model_params = rehydrate_models(json_file) if rehydrate else ([],[], {})
+    tuned_models = {}
                
     if X_train is None:
         X_train=data["X_train"]
@@ -434,20 +434,29 @@ def get_tuned_models(param_grids, data, X_train=None, scoring=SCORING, stage=1, 
     for model in baseline_models:
         model_class = model.__class__
         model_name = model_class.__name__
-        
-        # check if rehydrated
-        if model_name in tuned_model_names:
+
+        # rehydrate if file exists and permitted to do so
+        pkl_name = get_pickle_name(model_name, stage, feature, target, split_type)
+        if rehydrate and os.path.exists(pkl_name):
+            with open(pkl_name, "rb") as file:
+                tuned_models[pkl_name] = pickle.load(file)
             continue
-        
+                
         param_grid = param_grids[model_class]
         best_model, best_params = tune_model(model, param_grid, data, X_train, scoring=scoring)
         
-        tuned_models.append(best_model)
-        print(f"{len(tuned_models)}/{len(baseline_models)} models tuned\n")
+        tuned_models[pkl_name] = best_model
+        #tuned_models.append(best_model)
+        print(f"{len(tuned_models.keys())}/{len(baseline_models)} models tuned\n")
         # store best params for rehydration
-        best_model_params[model_name] = best_params
+        #best_model_params[model_name] = best_params
         
     # save best params
+    for path, model in tuned_models.items():
+        with open(path, "wb") as file:
+            pickle.dump(model, file)    
+    
+    """
     with open(json_file, "w") as file:
         # Some algos wrap others, which makes them non-serializable
         # Remove from list and we'll need to CV them each time
@@ -455,9 +464,38 @@ def get_tuned_models(param_grids, data, X_train=None, scoring=SCORING, stage=1, 
         del best_model_params['BaggingClassifier']
         # save to JSON
         json.dump(best_model_params, file)
+    """
 
-    return tuned_models
+    return tuned_models.values()
 
+
+def get_fully_qualified_path(stage, feature, target, split_type):
+    folder = f'./model_data/stage_{stage}/{target}_{split_type}'
+    if feature is not None:
+        folder += f'_{feature}'
+    folder += '/'
+    return folder
+
+
+def get_simple_path(stage):
+    return f'./model_data/stage_{stage}/'
+
+
+def get_pickle_name(model_name, stage, feature, target, split_type, use_fully_qualified_path=True):
+    '''
+    The fully qualified path is interesting to save optimal model parameters for each stage/feature selection option/target/split type/etc.
+    However, there is a concern that this could lead to overfitting.  Use the following test:
+    1. Train all paramaters on optimal, per config setting
+    2. Record outputs and find "top model"
+    3. Run again with a different seed value.  The hyperparameters won't change since they've alread been saved but we can find out how sensitive the results are base on seed.
+    4. If results are significantly different, then use the simple path to use the same settings for all configurations.
+    '''
+    folder = get_fully_qualified_path(stage, feature, target, split_type) if use_fully_qualified_path else get_simple_path(stage)
+    
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+        
+    return folder + model_name + '.pkl'
 
 def get_probs(models, data):
     """
@@ -526,7 +564,7 @@ def run_comparison(data, include_baseline=True, include_stage_2=True, rehydrate=
 
     if include_stage_2:
         # get the probability predictions for each model
-        train_probs, test_probs = get_probs(s1_tuned_models)
+        train_probs, test_probs = get_probs(s1_tuned_models, data)
 
         # train_probs.to_csv("train_probs.csv", index=False)
         # test_probs.to_csv("test_probs.csv", index=False)
@@ -553,8 +591,6 @@ def run_comparison(data, include_baseline=True, include_stage_2=True, rehydrate=
 
 # full run
 #run_comparison()
-
-
 
 if __name__ == "__main__":
     import argparse
