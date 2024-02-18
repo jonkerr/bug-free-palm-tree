@@ -172,4 +172,5 @@ clean_data/
 training_data/
 feature_data/
 split_data/
+feature_selection/
 recession.csv
