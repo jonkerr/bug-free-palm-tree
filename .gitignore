@@ -171,7 +171,9 @@ raw_data/
 clean_data/
 training_data/
 feature_data/
+feature_selection/
 split_data/
+feature_selection/
 recession.csv
 
 # cache
@@ -180,3 +182,4 @@ http_cache.sqlite
 
 # misc
 bears.png
+recession.csv
