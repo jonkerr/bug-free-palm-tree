@@ -180,8 +180,19 @@ dependencies:
   - zlib=1.2.13=h8cc25b3_0
   - zstd=1.5.5=hd43e919_0
   - pip:
+      - appdirs==1.4.4
+      - cache-pandas==1.0.0
+      - cattrs==23.2.3
       - click==8.1.7
       - fredapi==0.5.1
+      - frozendict==2.4.0
+      - html5lib==1.1
+      - lxml==5.1.0
+      - multitasking==0.0.11
       - nltk==3.8.1
+      - peewee==3.17.1
       - regex==2023.12.25
+      - requests-cache==1.2.0
       - tqdm==4.66.1
+      - url-normalize==1.4.3
+      - yfinance==0.2.36

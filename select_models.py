@@ -331,7 +331,7 @@ def get_metrics(
         results[model_name] = metrics
 
     df = pd.DataFrame(results).T
-    df = df.sort_values(by='recall', ascending=False)
+    df = df.sort_values(by=['f1','recall'], ascending=False)
     return df
 
 

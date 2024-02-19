@@ -173,3 +173,10 @@ training_data/
 feature_data/
 split_data/
 recession.csv
+
+# cache
+cache/
+http_cache.sqlite
+
+# misc
+bears.png

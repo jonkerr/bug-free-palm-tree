@@ -86,10 +86,6 @@ def get_fred_series_data(out_file, ids, observation_start=None):
     dataset = {}
     start_time = time.time()
 
-    # If we are using the 'stock-based indicator' as a target, remove these IDs (recession and stock indicators).
-    if TARGET == 'bear' or TARGET == 'correction':
-        ids = [item for item in ids if item not in {'USREC', 'SPASTT01USM657N', 'SPASTT01USM661N'}]
-
     for count, i in enumerate(ids):
         if count % 50 == 0:
             print(count, ' months downloaded')

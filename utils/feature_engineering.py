@@ -1,9 +1,17 @@
 
+import os
 import pandas as pd
 from statsmodels.tsa.stattools import adfuller
 from sklearn.preprocessing import StandardScaler
 
 from utils.constants import CANDIDATE_TARGETS
+
+# https://pypi.org/project/cache-pandas/
+from cache_pandas import cache_to_csv
+
+# yahoo data
+import yfinance as yf
+import requests_cache
 
 def remove_variables(df, n=10, keep=None):
     '''
@@ -40,7 +48,7 @@ def add_lag_features(df, lags=[3, 6, 9, 12, 18]):
     lags: list of months to include lags
     '''
     lag_cols = {}
-    for col in df.drop(columns=CANDIDATE_TARGETS):
+    for col in df.drop(columns=CANDIDATE_TARGETS, errors='ignore'):
         for n in lags:
             lag_cols['{}_{}M_lag'.format(col, n)] = df[col].shift(
                 n).ffill().values
@@ -79,7 +87,7 @@ def stationarize_data(df, threshold=0.01, max_non_stationary_cols=10):
     - non_stationary_cols (list): List of non-stationary columns.
     '''
     # Initial set of non-stationary columns
-    non_stationary_cols = df.drop(columns=CANDIDATE_TARGETS).columns
+    non_stationary_cols = df.drop(columns=CANDIDATE_TARGETS, errors='ignore').columns
     iteration_count = 0
 
     # Iterate until the number of non-stationary columns is less than the specified threshold
@@ -92,7 +100,7 @@ def stationarize_data(df, threshold=0.01, max_non_stationary_cols=10):
 
         # Check ADF test p-value for each column
 #        for col in df.drop(columns=['Date']).columns:
-        for col in df.drop(columns=CANDIDATE_TARGETS).columns:
+        for col in df.drop(columns=CANDIDATE_TARGETS, errors='ignore').columns:
             result = adfuller(df[col])
             if result[1] > threshold:
                 need_diff.append(col)
@@ -110,7 +118,7 @@ def stationarize_data(df, threshold=0.01, max_non_stationary_cols=10):
     return df.copy(), non_stationary_cols
 
 
-def calculate_bear_market(indf, price_col, include_corrections=True):
+def calculate_bear_market(indf, price_col, include_corrections=True, use_daily=True):
     '''
     Calculate a bear market.
     Adapted from https://stackoverflow.com/questions/64830383/calculating-bull-bear-markets-in-pandas
@@ -125,7 +133,12 @@ def calculate_bear_market(indf, price_col, include_corrections=True):
             the (secular?) bull market from 2003-2008.  As such, we'd prefer to categorize this period as two bear markets
             2000-2003 and 2008-2009.
     '''
-    # Once implemented, use the relative peak approach instead of the absolute peak
+    if use_daily:
+        df_bear = calculate_bear_from_yahoo_daily()
+        df_bear.index = pd.to_datetime(df_bear.index)
+        return pd.concat([indf, df_bear], axis=1)
+    
+    # If implemented, use the relative peak approach instead of the absolute peak
     # return calculate_bear_market_relative_peak(indf, price_col, include_corrections)
     return calculate_bear_market_absolute_peak(indf, price_col, include_corrections)
 
@@ -166,8 +179,7 @@ def calculate_bear_market_absolute_peak(indf, price_col, include_corrections=Tru
     # let's also consider corrections
     corrections = None
     if include_corrections:
-        df['correction'] = (~df['bear']) & (
-            df['ddmax'] < -0.1) & (df['ddmax'] < df.groupby('ddn')['dd'].transform('cummin'))
+        df['correction'] = (df['ddmax'] < -0.1) & (df['ddmax'] < df.groupby('ddn')['dd'].transform('cummin'))
         df['corrn'] = ((df['correction'] == True) & (
             df['correction'].shift() == False)).cumsum()
         corrections = df.reset_index().query('correction == True').groupby('corrn')[
@@ -191,6 +203,35 @@ def calculate_bear_market_relative_peak(indf, price_col, include_corrections=Tru
     Still needs to be implemented to detect shorter term bear markets/downturns that are not dependent on absolute peak
     '''
     pass
+
+
+if not os.path.exists('cache'):
+    os.mkdir('cache')
+
+# no need to refresh cache more than once a day
+@cache_to_csv("cache/yahoo_stock_cache.csv", refresh_time=86400)
+def calculate_bear_from_yahoo_daily():
+    '''
+    Pretty much straight out of: https://stackoverflow.com/questions/64830383/calculating-bull-bear-markets-in-pandas
+    I had previously adapted this to work with our S&P data but an argument was made to use daily, so I'm using the code as is.
+    Comments in calculate_bear_market_absolute_peak() describe what each of the calls below does (I reverse engineered)
+    '''
+    session = requests_cache.CachedSession()
+
+    df = yf.download('^GSPC', session=session)
+    df = df[['Adj Close']].copy()
+
+    df['dd'] = df['Adj Close'].div(df['Adj Close'].cummax()).sub(1)
+    df['ddn'] = ((df['dd'] < 0.) & (df['dd'].shift() == 0.)).cumsum()
+    df['ddmax'] = df.groupby('ddn')['dd'].transform('min')
+    df['bear'] = (df['ddmax'] < -0.2) & (df['ddmax'] < df.groupby('ddn')['dd'].transform('cummin'))
+    df['bearn'] = ((df['bear'] == True) & (df['bear'].shift() == False)).cumsum()
+
+    # Get monthly results
+    df_bear = df.groupby(pd.Grouper(freq="MS"))['bear'].any()    
+    # Return monthly data only
+    return df_bear[df_bear.index.day==1]
+
 
 
 def add_pct_change(df, market_col='S&P500 Price - Inflation Adjusted'):

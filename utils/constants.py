@@ -15,8 +15,9 @@ FEATURE_DATA_PATH = './feature_data/'
 SEED = 42
 
 # Possible training targets
-CANDIDATE_TARGETS = ['bear', 'correction','Regime']
-#CANDIDATE_TARGETS = ['bear', 'correction']
+#CANDIDATE_TARGETS = ['bear', 'correction','Regime']
+CANDIDATE_TARGETS = ['bear', 'Regime']
+
 TARGET = 'bear'
 REMOVE_LIST = [*CANDIDATE_TARGETS, 'Date']
 

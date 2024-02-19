@@ -32,10 +32,11 @@ def clean_multpl(out_file, in_file):
 
     # drop dates that aren't on the first of the month
     df = df[df.index.day == 1]
+   
     # add features but only unpack the first item (the dataframe)
-    df, bears, corrections = calculate_bear_market(
-        df, price_col='S&P500 Price - Inflation Adjusted')
+    df = calculate_bear_market(df, price_col='S&P500 Price - Inflation Adjusted')
     # df = add_pct_change(df)
+    
     # save
     df.to_csv(out_file)
     return df
@@ -53,6 +54,9 @@ def merge_data(out_file):
                for path in paths]
         
         df = pd.concat(dfs, axis=1)
+        
+        # ensure we don't have really old records
+        df = df[df.index >= '1872-01-01']
 
         # Regime has trailing nulls.  We need to drop them or we'll lose the column
         df.dropna(subset = ['Regime'], inplace=True)
@@ -88,17 +92,23 @@ def merge_data(out_file):
 '''
 Data pipeline based on work done for Milestone 1: https://github.com/jonkerr/SIADS593
 '''
-def clean_data(clean_option):
+def clean_data(clean_option, force):
     if not os.path.isdir(CLEAN_DATA_PATH):
         os.mkdir(CLEAN_DATA_PATH)
     
     if clean_option in ['multpl', 'all']:
+        if force:
+            path = CLEAN_DATA_PATH + 'multpl_clean.csv'
+            if os.path.exists(path):
+                os.remove(path)
         clean_multpl('multpl_clean.csv', 'econ_multpl.csv')
-        #CleanMultpl().clean()
 
     if clean_option in ['merge', 'all']:
+        if force:
+            path = CLEAN_DATA_PATH+'merged.csv'
+            if os.path.exists(path):
+                os.remove(path)
         merge_data('merged.csv')
-        #MergeData().clean()
 
 
 '''
@@ -112,5 +122,10 @@ if __name__ == '__main__':
                         help='Which file to clean? [multpl|merge] Default is all',
                         default="all",
                         required=False)
+    parser.add_argument('-f', '--force',
+                        help='Force file recreation? Default is n',
+                        default="n",
+                        required=False)
     args = parser.parse_args()
-    clean_data(args.clean_option)
+    
+    clean_data(args.clean_option, args.force!='n')

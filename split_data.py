@@ -56,6 +56,14 @@ def split_and_save(df_features, split_fn, target, paths):
 
 
 def create_training_data(df_features, target):              
+        
+    # If we are using the 'stock-based indicator' as a target, remove these IDs (recession and stock indicators).
+    if target == 'bear' or target == 'correction':        
+        # Let's use a nice little trick from https://stackoverflow.com/questions/43822349/drop-column-that-starts-with 
+        #   to remove any columns that starts with one of these (lag features will have same root!)
+        for leaky_col in  ['USREC', 'SPASTT01USM657N', 'SPASTT01USM661N']:
+            df_features = df_features.loc[:, ~df_features.columns.str.startswith(leaky_col)]    
+    
     print(f"Creating date split training data for target {target}")    
     prefixes = ['X_train', 'y_train', 'X_test', 'y_test']
     names = [f'{p}_{target}' for p in prefixes]
