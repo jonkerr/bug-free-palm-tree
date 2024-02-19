@@ -8,7 +8,7 @@ import os
 from collections import defaultdict
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.metrics import make_scorer
 from sklearn.discriminant_analysis import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
@@ -395,7 +395,7 @@ def perform_cross_validation(
     datatype, results_df, models_list=baseline_models, target=TARGET, split=SPLIT_TYPE
 ):
     print(
-        f"\nPerforming 10-fold cross-validation on {datatype} data for {target} - {split}."
+        f"\nPerforming 10-fold stratified cross-validation on {datatype} data for {target} - {split}."
     )
     cv_results = []
     precision_scorer = make_scorer(precision_score, zero_division=0)
@@ -418,6 +418,7 @@ def perform_cross_validation(
     if datatype == "test":
         X = X_test
         y = y_test
+    stratified_cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=SEED)  # You can set a random state for reproducibility
 
     for model in models_list:
         # Find the model in the results DataFrame
@@ -438,7 +439,7 @@ def perform_cross_validation(
             for metric, scorer in scoring_metrics.items():
                 # Perform cross-validation
                 cv_scores = cross_val_score(
-                    model, X_important, y, cv=10, scoring=scorer
+                    model, X_important, y, cv=stratified_cv, scoring=scorer
                 )
 
                 # Update the dictionary with the mean and std of cv scores
@@ -469,10 +470,10 @@ def perform_cross_validation(
     return df
 
 
-results_df = optimize_and_evaluate(
-    baseline_models, target_types=[TARGET], split_types=[SPLIT_TYPE]
-)
-# results_df = load_and_parse_results() # load from file
+# results_df = optimize_and_evaluate(
+#     baseline_models, target_types=[TARGET], split_types=[SPLIT_TYPE]
+# )
+results_df = load_and_parse_results() # load from file
 print(results_df)
 
 X_train, y_train, X_test, y_test = load_data(subset=None)
