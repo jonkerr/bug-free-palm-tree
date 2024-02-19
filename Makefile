@@ -43,4 +43,7 @@ reclean: removecleaned clean
 resplit: removesplit split
 remodel: removefeatures selectmodels
 remodelc: removecleaned selectmodels
+
+# clean and then all from different places
 recleana: removecleaned all
+resplita: removesplit all
