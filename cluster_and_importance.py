@@ -99,7 +99,6 @@ def load_data(target=TARGET, split=SPLIT_TYPE, subset=None, seed=SEED):
         X_train = X_train[sampled_columns]
         X_test = X_test[sampled_columns]
 
-    # return dropped columns for descriptive visualization title
     return X_train, y_train.values.ravel(), X_test, y_test.values.ravel()
 
 
@@ -473,10 +472,10 @@ def perform_cross_validation(
     return df
 
 
-# results_df = optimize_and_evaluate(
-#     baseline_models, target_types=[TARGET], split_types=[SPLIT_TYPE]
-# )
-results_df = load_and_parse_results()  # load from file
+results_df = optimize_and_evaluate(
+    baseline_models, target_types=[TARGET], split_types=[SPLIT_TYPE]
+)
+# results_df = load_and_parse_results()  # load from file
 print(results_df)
 
 X_train, y_train, X_test, y_test = load_data(subset=None)
