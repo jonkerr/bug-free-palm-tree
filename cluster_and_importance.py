@@ -418,7 +418,10 @@ def perform_cross_validation(
     if datatype == "test":
         X = X_test
         y = y_test
-    stratified_cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=SEED)  # You can set a random state for reproducibility
+
+    stratified_cv = StratifiedKFold(
+        n_splits=10, shuffle=True, random_state=SEED
+    )
 
     for model in models_list:
         # Find the model in the results DataFrame
@@ -473,7 +476,7 @@ def perform_cross_validation(
 # results_df = optimize_and_evaluate(
 #     baseline_models, target_types=[TARGET], split_types=[SPLIT_TYPE]
 # )
-results_df = load_and_parse_results() # load from file
+results_df = load_and_parse_results()  # load from file
 print(results_df)
 
 X_train, y_train, X_test, y_test = load_data(subset=None)
