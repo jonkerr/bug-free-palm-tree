@@ -67,9 +67,12 @@ def get_training_data(split_type=SPLIT_TYPE, feature_type=FEATURE_TYPE, target=T
 
     files = ["X_train", "y_train", "X_test", "y_test"]
     data = {fname: pd.read_csv(format_name(fname)) for fname in files}
+    
+    print('\n----------------------------------------------------')
     if feature_type:
         print(f"**Data is using the '{feature_type}' feature type**")
-    print(f"**Data is using the '{split_type}' split type**\n")
+    print(f"**Data is using the '{split_type}' split type**")
+    print(f"**Data is using the '{target}' target**\n")
     return data
 
 
@@ -265,11 +268,11 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test):
 
     # Dictionary to store metrics
     metrics = {
+        "precision": precision_score,
         "recall": recall_score,
+        "f1": f1_score,
         "roc_auc": roc_auc_score,
         "accuracy": accuracy_score,
-        "precision": precision_score,
-        "f1": f1_score,
     }
 
     results = {}
@@ -574,7 +577,7 @@ def run_comparison(data, include_baseline=True, include_stage_2=True, rehydrate=
 
         # get tuned models for stage 2
         print("Stage 2: Tuning models on probability data...\n")
-        s2_tuned_models = get_tuned_models(param_grids, data, X_train=train_probs, stage=2)
+        s2_tuned_models = get_tuned_models(param_grids, data, X_train=train_probs, stage=2, rehydrate=rehydrate)
 
         if include_baseline:
             print("Stage 2: Training and evaluating baseline_models on probability data...")

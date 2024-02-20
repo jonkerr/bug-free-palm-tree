@@ -23,7 +23,7 @@ df_features_and_targets = pd.read_csv(
 
 
 #@file_check_decorator(out_data_path)
-def select_features_lasso(out_file, split_data):
+def select_features_lasso(out_file, split_data, target):
     
     X_train, y_train, X_test, y_test = split_data
     
@@ -32,7 +32,7 @@ def select_features_lasso(out_file, split_data):
     X_train_scaled = sc.fit_transform(X_train)
     
     # Create a Lasso model
-    selected_alpha = 0.7
+    selected_alpha = 0.025 if target == 'bear' else .009    
     lasso_model = Lasso(alpha = selected_alpha)
 
     # Fit the Lasso model on the training data
@@ -40,9 +40,13 @@ def select_features_lasso(out_file, split_data):
 
     # Get the selected features
     selected_features_lasso = X_train.columns[lasso_model.coef_ != 0]
+    #print('selected features: ', selected_features_lasso)
     
     X_train_lasso = X_train[selected_features_lasso]
     X_test_lasso = X_test[selected_features_lasso]
+    
+    print(f'X_train ({target}) dimensions: ', X_train_lasso.shape)
+    print(f'X_test ({target}) dimensions: ', X_test_lasso.shape)
 
     # save
     X_train_lasso.to_csv(SPLIT_DATA_PATH + "X_train_" + out_file)
@@ -125,7 +129,7 @@ def select_features(selection_option, split_targets, split_types):
                 split_data = get_split_data(target, stype) 
                        
             if selection_option in ["lasso", "all"]:
-                select_features_lasso(f"lasso_{target}_{stype}.csv", split_data)
+                select_features_lasso(f"lasso_{target}_{stype}.csv", split_data, target)
 
             if selection_option in ["pca", "all"]:
                 select_features_pca(f"pca_{target}_{stype}.csv", split_data)

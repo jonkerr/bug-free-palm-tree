@@ -47,3 +47,16 @@ remodelc: removecleaned selectmodels
 # clean and then all from different places
 recleana: removecleaned all
 resplita: removesplit all
+
+# lasso tuning
+tunelasso:
+	python select_features.py --feature_option lasso
+	python select_models.py --feature_option lasso --split_target all
+
+tunelasso2b:
+	python select_features.py --feature_option lasso
+	python select_models.py --feature_option lasso --split_target bear --run_type stg2
+
+tunelasso2r:
+	python select_features.py --feature_option lasso
+	python select_models.py --feature_option lasso --split_target rec --run_type stg2
