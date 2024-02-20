@@ -191,7 +191,13 @@ def scale_data(X_train, X_test=None):
 
 @timing_decorator
 def optimize_and_evaluate(
-    models, target_types, split_types, n_iterations=5, sample=None, seed=SEED
+    models,
+    target_types,
+    split_types,
+    n_iterations=5,
+    sample=None,
+    seed=SEED,
+    threshold=2.25,
 ):
     """
     Optimizes models using permutation importance feature selection and evaluates them.
@@ -233,7 +239,7 @@ def optimize_and_evaluate(
                     create_correlation_matrix(X_full)
                 )
                 selected_feature_names = select_features_by_cluster(
-                    X_full, dist_linkage
+                    X_full, dist_linkage, threshold=threshold
                 )
                 # print(f"Initial selected features count: {len(selected_feature_names)}")
 
@@ -418,9 +424,7 @@ def perform_cross_validation(
         X = X_test
         y = y_test
 
-    stratified_cv = StratifiedKFold(
-        n_splits=10, shuffle=True, random_state=SEED
-    )
+    stratified_cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=SEED)
 
     for model in models_list:
         # Find the model in the results DataFrame
@@ -473,20 +477,20 @@ def perform_cross_validation(
 
 
 results_df = optimize_and_evaluate(
-    baseline_models, target_types=[TARGET], split_types=[SPLIT_TYPE]
+    baseline_models, target_types=[TARGET], split_types=[SPLIT_TYPE], threshold=2.25
 )
 # results_df = load_and_parse_results()  # load from file
 print(results_df)
 
 X_train, y_train, X_test, y_test = load_data(subset=None)
-eval_df = get_evaluation(baseline_models, X_train, X_test, y_train, y_test, results_df)
-print(eval_df)
+# eval_df = get_evaluation(baseline_models, X_train, X_test, y_train, y_test, results_df)
+# print(eval_df)
 
 # export to csv
-print(
-    "Exporting evaluation results to feature_selection/feature_selection_evaluation.csv"
-)
-eval_df.to_csv("feature_selection/feature_selection_evaluation.csv")
+# print(
+#     "Exporting evaluation results to feature_selection/feature_selection_evaluation.csv"
+# )
+# eval_df.to_csv("feature_selection/feature_selection_evaluation.csv")
 
 cv_results = perform_cross_validation(datatype="test", results_df=results_df)
 print(cv_results)
