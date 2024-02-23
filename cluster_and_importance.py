@@ -34,6 +34,11 @@ def set_drop_columns(target):
     if target == "bear":
         drop = [
             "USREC",
+            "USREC_3M_lag",
+            "USREC_6M_lag",
+            "USREC_9M_lag",
+            "USREC_12M_lag",
+            "USREC_18M_lag",
             "S&P500 Price - Inflation Adjusted",
             "S&P500 Dividend Yield",
             "S&P500 PE ratio",
@@ -63,7 +68,14 @@ def set_drop_columns(target):
         return drop
 
     if target == "Regime":
-        drop = ["USREC"]
+        drop = [
+            "USREC",
+            "USREC_3M_lag",
+            "USREC_6M_lag",
+            "USREC_9M_lag",
+            "USREC_12M_lag",
+            "USREC_18M_lag",
+        ]
         print("Dropped USREC column")
         return drop
 
@@ -115,9 +127,9 @@ def create_correlation_matrix(X):
     return corr
 
 
-def perform_hierarchical_clustering(corr):
+def perform_hierarchical_clustering(corr, method="ward"):
     distance_matrix = 1 - np.abs(corr)
-    dist_linkage = hierarchy.ward(squareform(distance_matrix))
+    dist_linkage = hierarchy.linkage(squareform(distance_matrix), method=method)
     return dist_linkage
 
 
