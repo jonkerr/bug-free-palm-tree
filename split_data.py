@@ -33,10 +33,52 @@ def standard_split(df, target):
     return X_train, y_train, X_test, y_test
 
 
+def set_drop_columns(target):
+    drop = None
+    if target == 'bear':
+        drop = ['USREC', 'S&P500 Price - Inflation Adjusted',
+            'S&P500 Dividend Yield',
+            'S&P500 PE ratio',
+            'S&P500 Earnings Yield',
+            'S&P500 Price - Inflation Adjusted_3M_lag',
+            'S&P500 Price - Inflation Adjusted_6M_lag',
+            'S&P500 Price - Inflation Adjusted_9M_lag',
+            'S&P500 Price - Inflation Adjusted_12M_lag',
+            'S&P500 Price - Inflation Adjusted_18M_lag',
+            'S&P500 Dividend Yield_3M_lag',
+            'S&P500 Dividend Yield_6M_lag',
+            'S&P500 Dividend Yield_9M_lag',
+            'S&P500 Dividend Yield_12M_lag',
+            'S&P500 Dividend Yield_18M_lag',
+            'S&P500 PE ratio_3M_lag',
+            'S&P500 PE ratio_6M_lag',
+            'S&P500 PE ratio_9M_lag',
+            'S&P500 PE ratio_12M_lag',
+            'S&P500 PE ratio_18M_lag',
+            'S&P500 Earnings Yield_3M_lag',
+            'S&P500 Earnings Yield_6M_lag',
+            'S&P500 Earnings Yield_9M_lag',
+            'S&P500 Earnings Yield_12M_lag',
+            'S&P500 Earnings Yield_18M_lag']
+        print("Dropped S&P and USREC columns")
+        return drop
+    
+    if target == 'Regime':
+        drop = ['USREC']
+        print("Dropped USREC column")
+        return drop
+    
+    print("No columns dropped")
+    return drop
+
 def split_and_save(df_features, split_fn, target, paths):
     '''
     Execute the provided split function and save each of the resultant dataframes
     '''
+    
+    drop_columns = set_drop_columns(target)
+    df_features = df_features.drop(columns=drop_columns, errors='ignore').copy()    
+    
     # split data
     X_train, y_train, X_test, y_test = split_fn(df_features, target)
 

@@ -60,3 +60,6 @@ tunelasso2b:
 tunelasso2r:
 	python select_features.py --feature_option lasso
 	python select_models.py --feature_option lasso --split_target rec --run_type stg2
+
+modelall:
+	python select_models.py --feature_option all --split_target all --run_type stg2

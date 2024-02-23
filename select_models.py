@@ -39,12 +39,12 @@ from sklearn.metrics import (
 import xgboost as xgb
 from utils.constants import (
     SEED, 
-    TRAINING_DATA_PATH, 
     SPLIT_DATA_PATH,
     SCORING,
     SPLIT_TYPE,
     FEATURE_TYPE,
-    TARGET
+    TARGET,
+    MODEL_PERFORMANCE
 )
 
 def get_training_data(split_type=SPLIT_TYPE, feature_type=FEATURE_TYPE, target=TARGET):
@@ -548,6 +548,12 @@ def get_probs(models, data):
 @timing_decorator
 def run_comparison(data, include_baseline=True, include_stage_2=True, rehydrate=False, save_metrics=False):
 
+    staged_metrics = []
+    def append_to_staged(indf, stage):
+        indf['stage'] = stage
+        staged_metrics.append(indf.iloc[0])
+        
+
     # if we are exporting the tuned models for prediction, consider making a dictionary
     print("Stage 1: Tuning models on training data...\n")
     s1_tuned_models = get_tuned_models(param_grids, data, rehydrate=rehydrate)
@@ -556,24 +562,21 @@ def run_comparison(data, include_baseline=True, include_stage_2=True, rehydrate=
         print("Stage 1: Training and evaluating baseline_models on training data...")
         s1_base_metrics = get_metrics(baseline_models, data)
         print(s1_base_metrics)
+        append_to_staged(s1_base_metrics,0)
         if save_metrics:
             s1_base_metrics.to_csv("s1_baseline_metrics.csv")
+        
 
     print("\nStage 1: Training and evaluating s1_tuned_models on training data...")
     s1_tuned_metrics = get_metrics(s1_tuned_models, data)
     print(s1_tuned_metrics)
+    append_to_staged(s1_tuned_metrics,1)
     if save_metrics:
         s1_tuned_metrics.to_csv("s1_tuned_metrics.csv")
-
+        
     if include_stage_2:
         # get the probability predictions for each model
         train_probs, test_probs = get_probs(s1_tuned_models, data)
-
-        # train_probs.to_csv("train_probs.csv", index=False)
-        # test_probs.to_csv("test_probs.csv", index=False)
-
-        # train_probs = pd.read_csv("train_probs.csv")
-        # test_probs = pd.read_csv("test_probs.csv")
 
         # get tuned models for stage 2
         print("Stage 2: Tuning models on probability data...\n")
@@ -589,11 +592,12 @@ def run_comparison(data, include_baseline=True, include_stage_2=True, rehydrate=
         print("\nStage 2: Training and evaluating s2_tuned_models on probability data...")
         s2_tuned_metrics = get_metrics(s2_tuned_models, data, X_train=train_probs, X_test=test_probs)
         print(s2_tuned_metrics)
+        append_to_staged(s2_tuned_metrics,2)
         if save_metrics:
             s2_tuned_metrics.to_csv("s2_tuned_metrics.csv")
+            
+    return staged_metrics
 
-# full run
-#run_comparison()
 
 if __name__ == "__main__":
     import argparse
@@ -684,7 +688,25 @@ if __name__ == "__main__":
 
 
     # put it all together
+    if not os.path.isdir(MODEL_PERFORMANCE):
+        os.mkdir(MODEL_PERFORMANCE)
+
     for feature in feature_options:
         for target in split_targets:    
+            # get training data
             data = get_training_data(split_type=split_type, feature_type=feature, target=target)  
-            run_comparison(data, include_baseline=include_baseline, include_stage_2=include_stage_2, rehydrate=rehydrate, save_metrics=save_metrics)
+
+            # get results
+            results_arr = run_comparison(data, include_baseline=include_baseline, include_stage_2=include_stage_2, rehydrate=rehydrate, save_metrics=save_metrics)            
+
+            # format as df
+            df_results = pd.concat(results_arr,axis=1).T
+
+            # save config as column
+            fname = feature if feature is not None else 'None'
+            config = f'{target}_{fname}_{split_type}'
+            df_results['config'] = config
+            
+            # save df
+            path = MODEL_PERFORMANCE + f'{config}.csv'                        
+            df_results.to_csv(path)

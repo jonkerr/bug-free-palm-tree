@@ -10,6 +10,7 @@ CLEAN_DATA_PATH = './clean_data/'
 SPLIT_DATA_PATH = './split_data/'
 TRAINING_DATA_PATH = './training_data/'
 FEATURE_DATA_PATH = './feature_data/'
+MODEL_PERFORMANCE = './model_performance/'
 
 # Randomization
 SEED = 42
