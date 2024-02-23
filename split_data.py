@@ -36,6 +36,7 @@ def standard_split(df, target):
 def set_drop_columns(target):
     drop = None
     if target == 'bear':
+        #drop = []
         drop = ['USREC', 'S&P500 Price - Inflation Adjusted',
             'S&P500 Dividend Yield',
             'S&P500 PE ratio',
