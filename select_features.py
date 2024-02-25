@@ -77,12 +77,12 @@ def select_features_pca(out_file, split_data):
     X_train_scaled = sc.fit_transform(X_train)
     X_test_scaled = sc.transform(X_test)
 
-    pca = PCA(n_components=40)
+    pca = PCA(n_components=170)
     X_train_pca = pca.fit_transform(X_train_scaled)
     X_test_pca = pca.transform(X_test_scaled)
     
-    pca_train_df = pd.DataFrame(data=X_train_pca, columns=[f'PC{i+1}' for i in range(40)])
-    pca_test_df = pd.DataFrame(data=X_test_pca, columns=[f'PC{i+1}' for i in range(40)])
+    pca_train_df = pd.DataFrame(data=X_train_pca, columns=[f'PC{i+1}' for i in range(170)])
+    pca_test_df = pd.DataFrame(data=X_test_pca, columns=[f'PC{i+1}' for i in range(170)])
 
     # pca_df.head()
 
