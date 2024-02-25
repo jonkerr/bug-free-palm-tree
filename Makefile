@@ -15,7 +15,10 @@ removesplit: removefeatures
 removefeatures:
 	rm -fr feature_data
 
-removeall: removefeatures removesplit removecleaned removeraw	
+removeperf:
+	rm -fr model_performance
+
+removeall: removeperf removefeatures removesplit removecleaned removeraw	
 
 # Targets for building things
 getdata:
@@ -61,5 +64,5 @@ tunelasso2r:
 	python select_features.py --feature_option lasso
 	python select_models.py --feature_option lasso --split_target rec --run_type stg2
 
-modelall:
+modelall: features
 	python select_models.py --feature_option all --split_target all --run_type stg2

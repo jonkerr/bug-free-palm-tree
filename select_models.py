@@ -46,6 +46,7 @@ from utils.constants import (
     TARGET,
     MODEL_PERFORMANCE
 )
+from utils.model_tuning import get_pickle_name
 
 def get_training_data(split_type=SPLIT_TYPE, feature_type=FEATURE_TYPE, target=TARGET):
     """
@@ -285,6 +286,7 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test):
     Y_pred_proba = model.predict_proba(X_test)[:, 1]
 
     # Evaluate the model
+    
     for metric_name, metric_func in metrics.items():
         if metric_name == "roc_auc":
             score = metric_func(y_test, Y_pred_proba)
@@ -471,34 +473,6 @@ def get_tuned_models(param_grids, data, X_train=None, scoring=SCORING, stage=1, 
 
     return tuned_models.values()
 
-
-def get_fully_qualified_path(stage, feature, target, split_type):
-    folder = f'./model_data/stage_{stage}/{target}_{split_type}'
-    if feature is not None:
-        folder += f'_{feature}'
-    folder += '/'
-    return folder
-
-
-def get_simple_path(stage):
-    return f'./model_data/stage_{stage}/'
-
-
-def get_pickle_name(model_name, stage, feature, target, split_type, use_fully_qualified_path=True):
-    '''
-    The fully qualified path is interesting to save optimal model parameters for each stage/feature selection option/target/split type/etc.
-    However, there is a concern that this could lead to overfitting.  Use the following test:
-    1. Train all paramaters on optimal, per config setting
-    2. Record outputs and find "top model"
-    3. Run again with a different seed value.  The hyperparameters won't change since they've alread been saved but we can find out how sensitive the results are base on seed.
-    4. If results are significantly different, then use the simple path to use the same settings for all configurations.
-    '''
-    folder = get_fully_qualified_path(stage, feature, target, split_type) if use_fully_qualified_path else get_simple_path(stage)
-    
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-        
-    return folder + model_name + '.pkl'
 
 def get_probs(models, data):
     """
