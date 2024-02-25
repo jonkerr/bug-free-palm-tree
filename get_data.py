@@ -92,10 +92,15 @@ def get_fred_series_data(out_file, ids, observation_start=None):
         try:
             dataset[i] = fred.get_series(
                 i, observation_start=observation_start)
+            # try to avoid overwhelming FRED
+            time.sleep(2)
         except Exception as ex:
             print(ex)
             print(i)
             time.sleep(60)
+            # retry
+            dataset[i] = fred.get_series(
+                i, observation_start=observation_start)
 
     df = pd.DataFrame(dataset)
     df.to_csv(out_file)
