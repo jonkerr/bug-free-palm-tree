@@ -86,7 +86,7 @@ def filter_features_by_importance(X, perm_importance, threshold=0.005):
 def get_thresh(target=TARGET):
     if target == "bear":
         return 0.1
-    return 0.5
+    return 1.2 #Regime
 
 
 def export_results(
