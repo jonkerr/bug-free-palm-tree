@@ -41,6 +41,17 @@ def clean_multpl(out_file, in_file):
     df.to_csv(out_file)
     return df
 
+def interpolate_missing_data(df):
+    """
+    Inserting for Naomi, who gave me this code over slack.
+    --
+    Interpolates missing data using linear interpolation for columns with NaN values in a DataFrame.
+    Returns df with with missing values imputed using linear interpolation.
+    """
+    columns_with_missing_values = df.columns[df.isna().any()].tolist()
+    for series_id in columns_with_missing_values:
+        df[series_id] = df[series_id].interpolate(method='linear')
+    return df
 
 @file_check_decorator(out_data_path)
 def merge_data(out_file):
@@ -56,27 +67,32 @@ def merge_data(out_file):
         df = pd.concat(dfs, axis=1)
         
         # ensure we don't have really old records
-        df = df[df.index >= '1872-01-01']
+        #df = df[df.index >= '1872-01-01']
+        df = df[(df.index >= '1872-01-01')&(df.index <= '2024-01-01')]
 
         # Regime has trailing nulls.  We need to drop them or we'll lose the column
-        df.dropna(subset = ['Regime'], inplace=True)
+        #df.dropna(subset = ['Regime'], inplace=True)
         
         # we should decide between "S&P500 Price" and	"S&P500 Price - Inflation Adjusted"
         # using both would be colinear.  For now, let's use inflation adjusted only
         df = df.drop(columns=['S&P500 Price'])
 
+        # remove empty columns.
+        _ , dropped_cols = remove_variables(df, n=10)        
+        df = df.drop(columns=dropped_cols.keys())
+        
+        # fill missing data using interpolation
+        df = interpolate_missing_data(df)
+        
         # add lag features
         df = add_lag_features(df)
 
         # determine start date to minimize na cols
         # this would be a key area to adjust to get different data sets
         df = df[df.index >= POST_CLEANING_START_DATE]
-
-        # remove empty columns.
-        df, _ = remove_variables(df.copy(), n=10)
-
-        # finally, drop na
-        df.dropna(axis=0, inplace=True)
+        
+        # finally, drop any remaining columns with na that interpolate was unable to fix
+        df.dropna(axis=1, inplace=True)
         
         # Iteratively difference the time series until the number of non-stationary columns is less than a specified threshold.
         df, _ = stationarize_data(df, threshold=0.01)
