@@ -1,14 +1,10 @@
-# code is based on sklearn documentation
-# https://scikit-learn.org/stable/auto_examples/inspection/plot_permutation_importance_multicollinear.html
-
-"""This script performs feature selection using hierarchical clustering and permutation importance. """
-
 import ast  # used for parsing string to list
-import os
 from collections import defaultdict
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import StratifiedKFold, cross_val_score
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import cross_val_score
 from sklearn.metrics import make_scorer
 from sklearn.discriminant_analysis import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
@@ -25,93 +21,29 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.base import clone
-from utils.constants import SEED, SPLIT_TYPE, TARGET
-from select_models import baseline_models, model_needs_scaling, timing_decorator
+from utils.constants import SEED, TARGET, SPLIT_TYPE
+from select_models import baseline_models, model_needs_scaling, get_training_data
+from stacked_ensemble import BearStackedEnsemble, RegimeStackedEnsemble
 
 
-def set_drop_columns(target):
-    drop = None
-    if target == "bear":
-        drop = [
-            "USREC",
-            "USREC_3M_lag",
-            "USREC_6M_lag",
-            "USREC_9M_lag",
-            "USREC_12M_lag",
-            "USREC_18M_lag",
-            "S&P500 Price - Inflation Adjusted",
-            "S&P500 Dividend Yield",
-            "S&P500 PE ratio",
-            "S&P500 Earnings Yield",
-            "S&P500 Price - Inflation Adjusted_3M_lag",
-            "S&P500 Price - Inflation Adjusted_6M_lag",
-            "S&P500 Price - Inflation Adjusted_9M_lag",
-            "S&P500 Price - Inflation Adjusted_12M_lag",
-            "S&P500 Price - Inflation Adjusted_18M_lag",
-            "S&P500 Dividend Yield_3M_lag",
-            "S&P500 Dividend Yield_6M_lag",
-            "S&P500 Dividend Yield_9M_lag",
-            "S&P500 Dividend Yield_12M_lag",
-            "S&P500 Dividend Yield_18M_lag",
-            "S&P500 PE ratio_3M_lag",
-            "S&P500 PE ratio_6M_lag",
-            "S&P500 PE ratio_9M_lag",
-            "S&P500 PE ratio_12M_lag",
-            "S&P500 PE ratio_18M_lag",
-            "S&P500 Earnings Yield_3M_lag",
-            "S&P500 Earnings Yield_6M_lag",
-            "S&P500 Earnings Yield_9M_lag",
-            "S&P500 Earnings Yield_12M_lag",
-            "S&P500 Earnings Yield_18M_lag",
-        ]
-        print("Dropped S&P and USREC columns")
-        return drop
+def load_data(stacked_model):
+    model = stacked_model
+    fs = model.get_feature_set()
 
-    if target == "Regime":
-        drop = [
-            "USREC",
-            "USREC_3M_lag",
-            "USREC_6M_lag",
-            "USREC_9M_lag",
-            "USREC_12M_lag",
-            "USREC_18M_lag",
-        ]
-        print("Dropped USREC column")
-        return drop
-
-    print("No columns dropped")
-    return drop
-
-
-def load_data(target=TARGET, split=SPLIT_TYPE, subset=None, seed=SEED):
-    base_path = "split_data/"
-    X_train_file = f"X_train_{target}_{split}.csv"
-    y_train_file = f"y_train_{target}_{split}.csv"
-    X_test_file = f"X_test_{target}_{split}.csv"
-    y_test_file = f"y_test_{target}_{split}.csv"
-
-    X_train = pd.read_csv(base_path + X_train_file)
-    y_train = pd.read_csv(base_path + y_train_file)
-    X_test = pd.read_csv(base_path + X_test_file)
-    y_test = pd.read_csv(base_path + y_test_file)
-    print(f"\nLoaded {X_train_file}, {y_train_file}, {X_test_file}, and {y_test_file}.")
-
-    drop_columns = set_drop_columns(target)
-
-    if drop_columns:
-        # Drop the USREC column from X_train and X_test
-        X_train = X_train.drop(columns=drop_columns)
-        X_test = X_test.drop(columns=drop_columns)
-
-    if subset:
-        # Sample columns
-        print(f"Subsetting data to {subset} random columns.")
-        sampled_columns = X_train.sample(n=subset, axis=1, random_state=seed).columns
-
-        X_train = X_train[sampled_columns]
-        X_test = X_test[sampled_columns]
+    # get data
+    data = get_training_data(fs["split_type"], fs["feature"], fs["target"])
+    X_train, y_train = data["X_train"], data["y_train"]
+    X_test, y_test = data["X_test"], data["y_test"]
 
     return X_train, y_train.values.ravel(), X_test, y_test.values.ravel()
+
+
+def get_ensemble_model(target=TARGET):
+    if target == "bear":
+        return BearStackedEnsemble()
+    if target == "Regime":
+        return RegimeStackedEnsemble()
+    return None
 
 
 def train_classifier(model, X_train, y_train):
@@ -143,12 +75,23 @@ def select_features_by_cluster(X, dist_linkage, threshold=1):
 
 
 def filter_features_by_importance(X, perm_importance, threshold=0.005):
-    important_feature_idxs = np.where(perm_importance.importances_mean >= threshold)[0]
-    important_features = X.columns[important_feature_idxs]
+    """Returns the subset of features that have an importance mean above the threshold."""
+    important_feature_indices = np.where(perm_importance.importances_mean >= threshold)[
+        0
+    ]
+    important_features = X.columns[important_feature_indices]
     return important_features
 
 
-def export_results(best_scores, best_features, filename):
+def get_thresh(target=TARGET):
+    if target == "bear":
+        return 0.1
+    return 0.5
+
+
+def export_results(
+    best_scores, best_features, filename="feature_selection_results.csv"
+):
     base_path = "feature_selection/"
     results_df = pd.DataFrame(best_scores.items(), columns=["model", "best_score"])
     results_df["best_features"] = best_features.values()
@@ -159,11 +102,13 @@ def export_results(best_scores, best_features, filename):
     results_df.to_csv(base_path + filename, index=False, sep="\t")
     print(f"Results exported to {filename}")
 
+    # Parse the 'best_features' column from string representation of a list to an actual list
+    # results_df['best_features'] = results_df['best_features'].apply(ast.literal_eval)
     return results_df
 
 
 def calculate_permutation_importance(
-    clf, X, y, n_repeats=10, random_state=SEED, n_jobs=-1
+    clf, X, y, n_repeats=10, random_state=42, n_jobs=-1
 ):
     result = permutation_importance(
         clf, X, y, n_repeats=n_repeats, random_state=random_state, n_jobs=n_jobs
@@ -201,20 +146,31 @@ def scale_data(X_train, X_test=None):
     return X_train_scaled_df, X_test_scaled_df
 
 
-@timing_decorator
+def plot_permutation_importance(clf, X, y, ax):
+    result = permutation_importance(clf, X, y, n_repeats=10, random_state=42, n_jobs=-1)
+    perm_sorted_idx = result.importances_mean.argsort()
+
+    ax.boxplot(
+        result.importances[perm_sorted_idx].T,
+        vert=False,
+        labels=X.columns[perm_sorted_idx],
+    )
+    ax.axvline(x=0, color="k", linestyle="--")
+    return ax
+
+
 def optimize_and_evaluate(
     models,
-    target_types,
-    split_types,
+    stacked_model,
+    target_types=[TARGET],
+    split_types=[SPLIT_TYPE],
+    threshold=0.25,
     n_iterations=5,
-    sample=None,
-    seed=SEED,
-    threshold=2.25,
 ):
     """
     Optimizes models using permutation importance feature selection and evaluates them.
     Optionally visualizes the permutation importance results.
-    Returns the best scores and features for each model as a dataframe.
+    Returns the best scores and features for each model.
     """
     print(
         f"\nFinding best features for {len(models)} models on {len(target_types)} target(s) and {len(split_types)} split(s)..."
@@ -223,16 +179,21 @@ def optimize_and_evaluate(
     best_scores = {}
     best_features = {}
 
+    # Create a figure for the subplots
+    fig, axes = plt.subplots(figsize=(7, 4))
+
+    # Counter for the current subplot index
+    subplot_idx = 0
+
     for target in target_types:
+
         for split in split_types:
-            X_train, y_train, X_test, y_test = load_data(
-                target, split, subset=sample, seed=seed
-            )
+            X_train, y_train, X_test, y_test = load_data(stacked_model)
             X_full = pd.concat([X_train, X_test])
 
             for model in models:
                 model_name = type(model).__name__
-                print(f"Evaluating {model_name} on target: {target}, split: {split}")
+                # print(f"Evaluating {model_name} on target: {target}, split: {split}")
 
                 # Check if the model requires data scaling
                 if model_name in model_needs_scaling:
@@ -250,10 +211,11 @@ def optimize_and_evaluate(
                 dist_linkage = perform_hierarchical_clustering(
                     create_correlation_matrix(X_full)
                 )
+                threshold = threshold
                 selected_feature_names = select_features_by_cluster(
                     X_full, dist_linkage, threshold=threshold
                 )
-                # print(f"Initial selected features count: {len(selected_feature_names)}")
+                print(f"Initial selected features count: {len(selected_feature_names)}")
 
                 for iteration in range(1, n_iterations + 1):
                     X_train_sel = X_train_use[selected_feature_names]
@@ -280,9 +242,9 @@ def optimize_and_evaluate(
                     important_features = filter_features_by_importance(
                         X_test_sel, perm_importance
                     )
-                    # print(
-                    #     f"Iteration {iteration} important features: {len(important_features)}"
-                    # )
+                    print(
+                        f"Iteration {iteration} important features: {len(important_features)}"
+                    )
 
                     if len(important_features) == 0:
                         break
@@ -302,23 +264,31 @@ def optimize_and_evaluate(
                     else None
                 )
 
-                print(f"Finished evaluating {model_name}")
-                print(f"{len(best_scores)}/{len(models)} models optimized\n")
+                if best_iteration_features is not None:
+                    # Use the next subplot for the current model
+                    ax = axes
+                    plot_permutation_importance(clf_sel, X_test_sel, y_test, ax)
+                    best_score_rounded = round(
+                        best_model_score, 4
+                    )  # Round the best score to 3 significant figures
+                    ax.set_title(f"{model_name} - Best Score: {best_score_rounded}")
+                    ax.set_xlabel("Decrease in average scores")
+                    subplot_idx += 1  # Increment the subplot index
 
-            if sample:
-                filename = (
-                    f"permutation_importance_{target}_{split}_sample_{sample}.csv"
-                )
-            else:
-                filename = f"permutation_importance_{target}_{split}.csv"
+            title_string = f"Permutation Importance for {target} Stage 2 Ensemble Model"
+
+            fig.suptitle(title_string)
+            plt.tight_layout()
+            plt.show()
+            filename = f"permutation_importance_{target}_{split}_stacked.csv"
 
             df = export_results(best_scores, best_features, filename=filename)
-    print("Optimization and evaluation complete.\n")
+
     return df
 
 
 def load_and_parse_results(target=TARGET, split=SPLIT_TYPE):
-    filename = f"feature_selection/permutation_importance_{target}_{split}.csv"
+    filename = f"feature_selection/permutation_importance_{target}_{split}_stacked.csv"
     results_df = pd.read_csv(filename, sep="\t")
     # drop na
     results_df = results_df.dropna()
@@ -356,15 +326,19 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test):
     return results
 
 
-def get_evaluation(models, X_train, X_test, y_train, y_test, results_df):
+def get_evaluation(results_df):
     """
+    Evaluate the models using the best features found from the feature selection process.
     Returns a DataFrame with the evaluation results.
     """
-    print("\nEvaluating models using the best features found from feature selection...")
     evaluation_results = []
+
+    models = baseline_models
+    X_train, y_train, X_test, y_test = load_data(get_ensemble_model())
 
     for model in models:
         model_name = model.__class__.__name__
+        # Ensure best_features is a flat list of feature names
         best_features_series = results_df.loc[
             results_df["model"] == model_name, "best_features"
         ]
@@ -408,11 +382,19 @@ def get_evaluation(models, X_train, X_test, y_train, y_test, results_df):
     return evaluation_df
 
 
+from sklearn.model_selection import StratifiedKFold
+
+
 def perform_cross_validation(
-    datatype, results_df, models_list=baseline_models, target=TARGET, split=SPLIT_TYPE
+    datatype,
+    stacked_model,
+    results_df,
+    models_list=baseline_models,
+    target=TARGET,
+    split=SPLIT_TYPE,
 ):
     print(
-        f"\nPerforming 10-fold stratified cross-validation on {datatype} data for {target} - {split}."
+        f"Performing 10-fold stratified cross-validation on {datatype} data for {target} - {split}."
     )
     cv_results = []
     precision_scorer = make_scorer(precision_score, zero_division=0)
@@ -427,7 +409,7 @@ def perform_cross_validation(
         "f1": f1_scorer,
     }
 
-    X_train, y_train, X_test, y_test = load_data(target=target, split=split)
+    X_train, y_train, X_test, y_test = load_data(stacked_model)
     if datatype == "train":
         X = X_train
         y = y_train
@@ -461,7 +443,7 @@ def perform_cross_validation(
                 )
 
                 # Update the dictionary with the mean and std of cv scores
-                model_scores[f"mean_{metric}_score"] = round(cv_scores.mean(), 4)
+                model_scores[f"mean_{metric}"] = round(cv_scores.mean(), 4)
                 model_scores[f"std_{metric}"] = round(cv_scores.std(), 4)
 
             # Append the dictionary to cv_results after processing all metrics
@@ -474,35 +456,28 @@ def perform_cross_validation(
     df.set_index("model", inplace=True)
     df.index.name = None
 
-    # Sort the DataFrame by one of the scores if desired
-    df = df.sort_values(by="mean_roc_auc_score", ascending=False)
+    df = df.sort_values(by="mean_roc_auc", ascending=False)
 
     # Save the DataFrame to CSV
-    df.to_csv(
-        f"feature_selection/10_fold_cross_validation_results_{target}_{split}_{datatype}.csv"
-    )
-    print(
-        f"10-fold cross-validation results exported to feature_selection/10_fold_cross_validation_results_{target}_{split}_{datatype}.csv\n"
-    )
+    # df.to_csv(f"feature_selection/10_fold_cross_validation_results_{target}_{split}_{datatype}_no_tuning.csv")
 
     return df
 
 
-results_df = optimize_and_evaluate(
-    baseline_models, target_types=[TARGET], split_types=[SPLIT_TYPE], threshold=2.25
-)
-# results_df = load_and_parse_results()  # load from file
+model = get_ensemble_model()
+stage2_model = model.__initialize_stage2_model__()
+
+results_df = optimize_and_evaluate([stage2_model], model, threshold=get_thresh())
+# results_df = load_and_parse_results()
+print(f"\nResults DataFrame:")
 print(results_df)
 
-X_train, y_train, X_test, y_test = load_data(subset=None)
-# eval_df = get_evaluation(baseline_models, X_train, X_test, y_train, y_test, results_df)
-# print(eval_df)
+eval_df = get_evaluation(results_df)
+print(f"\nEvaluation results:")
+print(eval_df)
 
-# export to csv
-# print(
-#     "Exporting evaluation results to feature_selection/feature_selection_evaluation.csv"
-# )
-# eval_df.to_csv("feature_selection/feature_selection_evaluation.csv")
-
-cv_results = perform_cross_validation(datatype="test", results_df=results_df)
+cv_results = perform_cross_validation(
+    datatype="test", stacked_model=get_ensemble_model(), results_df=results_df
+)
+print(f"\n10-fold stratified cross-validation on test set.")
 print(cv_results)
