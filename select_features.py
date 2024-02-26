@@ -8,12 +8,12 @@ from sklearn.linear_model import Lasso, LassoCV
 from sklearn.model_selection import TimeSeriesSplit
 
 from utils.decorators import file_check_decorator
-from utils.constants import FEATURE_DATA_PATH, CLEAN_DATA_PATH, TARGET, CANDIDATE_TARGETS, SPLIT_DATA_PATH
+from utils.constants import CLEAN_DATA_PATH, TARGET, CANDIDATE_TARGETS, SPLIT_DATA_PATH
 
 import warnings
 
 # set data path for wrappers
-out_data_path = FEATURE_DATA_PATH
+#out_data_path = FEATURE_DATA_PATH
 
 """
 df_features_and_targets = pd.read_csv(

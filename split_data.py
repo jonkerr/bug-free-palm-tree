@@ -4,7 +4,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
 # project constants
-from utils.constants import SEED, REMOVE_LIST, CLEAN_DATA_PATH, SPLIT_DATA_PATH
+from utils.constants import SEED, REMOVE_LIST, CLEAN_DATA_PATH, SPLIT_DATA_PATH, SPLIT_TEST_SIZE
 
 out_data_path = SPLIT_DATA_PATH
 
@@ -29,47 +29,32 @@ def standard_split(df, target):
     X = df.drop(REMOVE_LIST, axis=1)
     y = df[target]
     X_train, X_test, y_train, y_test = train_test_split(    
-        X, y, test_size=0.25, stratify=y, random_state=SEED)
+        X, y, test_size=SPLIT_TEST_SIZE, stratify=y, random_state=SEED)
     return X_train, y_train, X_test, y_test
 
 
-def set_drop_columns(target):
-    drop = None
+def set_drop_columns(target, indf):
+    drop_roots = []
     if target == 'bear':
-        #drop = []
-        drop = ['USREC', 'S&P500 Price - Inflation Adjusted',
+        print("Dropping S&P and USREC columns")
+        drop_roots = ['USREC', 'S&P500 Price - Inflation Adjusted',
             'S&P500 Dividend Yield',
             'S&P500 PE ratio',
-            'S&P500 Earnings Yield',
-            'S&P500 Price - Inflation Adjusted_3M_lag',
-            'S&P500 Price - Inflation Adjusted_6M_lag',
-            'S&P500 Price - Inflation Adjusted_9M_lag',
-            'S&P500 Price - Inflation Adjusted_12M_lag',
-            'S&P500 Price - Inflation Adjusted_18M_lag',
-            'S&P500 Dividend Yield_3M_lag',
-            'S&P500 Dividend Yield_6M_lag',
-            'S&P500 Dividend Yield_9M_lag',
-            'S&P500 Dividend Yield_12M_lag',
-            'S&P500 Dividend Yield_18M_lag',
-            'S&P500 PE ratio_3M_lag',
-            'S&P500 PE ratio_6M_lag',
-            'S&P500 PE ratio_9M_lag',
-            'S&P500 PE ratio_12M_lag',
-            'S&P500 PE ratio_18M_lag',
-            'S&P500 Earnings Yield_3M_lag',
-            'S&P500 Earnings Yield_6M_lag',
-            'S&P500 Earnings Yield_9M_lag',
-            'S&P500 Earnings Yield_12M_lag',
-            'S&P500 Earnings Yield_18M_lag']
-        print("Dropped S&P and USREC columns")
-        return drop
-    
-    if target == 'Regime':
-        drop = ['USREC']
-        print("Dropped USREC column")
-        return drop
-    
-    print("No columns dropped")
+            'S&P500 Earnings Yield']
+        
+    elif target == 'Regime':
+        print("Dropping USREC columns")
+        drop_roots = ['USREC']
+        
+    else:
+        print("No columns dropped")
+        
+    drop = []
+    for root in drop_roots:
+        # borrowed inspiration from: https://stackoverflow.com/questions/27275236/how-to-select-all-columns-whose-names-start-with-x-in-a-pandas-dataframe
+        permutations =  [col for col in indf if col.startswith(root)]
+        drop.extend(permutations)
+        
     return drop
 
 def split_and_save(df_features, split_fn, target, paths):
@@ -77,7 +62,8 @@ def split_and_save(df_features, split_fn, target, paths):
     Execute the provided split function and save each of the resultant dataframes
     '''
     
-    drop_columns = set_drop_columns(target)
+    drop_columns = set_drop_columns(target, df_features)
+    
     df_features = df_features.drop(columns=drop_columns, errors='ignore').copy()    
     
     # split data

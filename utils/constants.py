@@ -16,7 +16,7 @@ RAW_DATA_PATH = './raw_data/'
 CLEAN_DATA_PATH = './clean_data/'
 SPLIT_DATA_PATH = './split_data/'
 TRAINING_DATA_PATH = './training_data/'
-FEATURE_DATA_PATH = './feature_data/'
+#FEATURE_DATA_PATH = './feature_data/'
 MODEL_PERFORMANCE = './model_performance/'
 
 # Randomization
@@ -32,6 +32,8 @@ REMOVE_LIST = [*CANDIDATE_TARGETS, 'Date']
 # Training and evaluation
 SCORING = "roc_auc"  # options: 'accuracy', 'precision', 'recall', 'f1', 'roc_auc'
 SPLIT_TYPE = "std"
+SPLIT_TEST_SIZE = 0.25
+
 #FEATURE_TYPE = "lasso"
 FEATURE_TYPE = None #"lasso"
 

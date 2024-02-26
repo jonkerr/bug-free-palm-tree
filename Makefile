@@ -66,3 +66,5 @@ tunelasso2r:
 
 modelall: features
 	python select_models.py --feature_option all --split_target all --run_type stg2
+
+resplitall: removesplit modelall
