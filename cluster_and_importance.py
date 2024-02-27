@@ -24,7 +24,7 @@ from sklearn.base import clone
 from utils.constants import SEED, TARGET, SPLIT_TYPE
 from select_models import baseline_models, model_needs_scaling, get_training_data
 from stacked_ensemble import BearStackedEnsemble, RegimeStackedEnsemble
-
+from imblearn.over_sampling import SVMSMOTE
 
 def load_data(stacked_model):
     model = stacked_model
@@ -35,6 +35,12 @@ def load_data(stacked_model):
     X_train, y_train = data["X_train"], data["y_train"]
     X_test, y_test = data["X_test"], data["y_test"]
 
+    if TARGET == 'Regime':
+        sm = SVMSMOTE(random_state=SEED)
+        X_res, y_res = sm.fit_resample(X_train, y_train)
+        X_train = X_res
+        y_train = y_res
+        
     return X_train, y_train.values.ravel(), X_test, y_test.values.ravel()
 
 
@@ -86,7 +92,7 @@ def filter_features_by_importance(X, perm_importance, threshold=0.005):
 def get_thresh(target=TARGET):
     if target == "bear":
         return 0.1
-    return 1.2 #Regime
+    return 1.6 #Regime
 
 
 def export_results(

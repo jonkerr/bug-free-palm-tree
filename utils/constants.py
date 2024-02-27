@@ -26,7 +26,7 @@ SEED = 42
 #CANDIDATE_TARGETS = ['bear', 'correction','Regime']
 CANDIDATE_TARGETS = ['bear', 'Regime']
 
-TARGET = 'bear'
+TARGET = 'Regime'
 REMOVE_LIST = [*CANDIDATE_TARGETS, 'Date']
 
 # Training and evaluation
