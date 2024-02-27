@@ -30,7 +30,7 @@ TARGET = 'bear'
 REMOVE_LIST = [*CANDIDATE_TARGETS, 'Date']
 
 # Training and evaluation
-SCORING = "roc_auc"  # options: 'accuracy', 'precision', 'recall', 'f1', 'roc_auc'
+SCORING = "f1"  # options: 'accuracy', 'precision', 'recall', 'f1', 'roc_auc'
 SPLIT_TYPE = "std"
 SPLIT_TEST_SIZE = 0.25
 

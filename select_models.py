@@ -46,67 +46,15 @@ from utils.constants import (
     TARGET,
     MODEL_PERFORMANCE
 )
-from utils.model_tuning import get_pickle_name
+from utils.model_tuning import get_pickle_name, PathHelper
+from utils.training import get_training_data, baseline_models
 
-def get_training_data(split_type=SPLIT_TYPE, feature_type=FEATURE_TYPE, target=TARGET):
-    """
-    need to get files in the form:
-    paths = ['X_train_std.csv', 'y_train_std.csv', 'X_test_std.csv', 'y_test_std.csv']
-    """
-
-    def format_name(fname):
-        
-        name = fname
-        if feature_type is not None and not 'y_' in name:
-            name += "_" + feature_type
-            
-        return f"{SPLIT_DATA_PATH}{name}_{target}_{split_type}.csv"
-                
-        #if feature_type:
-        #    return f"{TRAINING_DATA_PATH}{fname}_{feature_type}_{split_type}.csv"
-        #return f"{TRAINING_DATA_PATH}{fname}_{split_type}.csv"
-
-    files = ["X_train", "y_train", "X_test", "y_test"]
-    data = {fname: pd.read_csv(format_name(fname)) for fname in files}
-    
-    print('\n----------------------------------------------------')
-    if feature_type:
-        print(f"**Data is using the '{feature_type}' feature type**")
-    print(f"**Data is using the '{split_type}' split type**")
-    print(f"**Data is using the '{target}' target**\n")
-    return data
-
-
-#data = get_training_data()
-
-baseline_models = [
-    LogisticRegression(random_state=SEED),
-    KNeighborsClassifier(),  # no random_state
-    SVC(
-        probability=True, random_state=SEED
-    ),  # probability=True needed for roc_auc_score
-    GaussianNB(),
-    BernoulliNB(),
-    GaussianProcessClassifier(random_state=SEED),
-    DecisionTreeClassifier(random_state=SEED),
-    RandomForestClassifier(random_state=SEED),
-    GradientBoostingClassifier(random_state=SEED),
-    AdaBoostClassifier(random_state=SEED),
-    ExtraTreesClassifier(random_state=SEED),
-    BaggingClassifier(random_state=SEED),
-    xgb.XGBClassifier(random_state=SEED),
-]
 
 model_needs_scaling = [
     "LogisticRegression",
     "KNeighborsClassifier",
     "SVC",
     "GaussianProcessClassifier",  # might benefit from scaling (it does)
-]
-
-ignore_in_phase_2 = [
-    'DecisionTreeClassifier',
-    'AdaBoostClassifier',
 ]
 
 # There needs to be a matching param_grid for each model in
@@ -429,8 +377,6 @@ def get_tuned_models(param_grids, data, X_train=None, scoring=SCORING, stage=1, 
     Returns:
     - tuned_models: A list of the best models with the optimized hyperparameters.
     """
-    #json_file = f'stage{stage}_params.json'
-    #tuned_models_old, tuned_model_names, best_model_params = rehydrate_models(json_file) if rehydrate else ([],[], {})
     tuned_models = {}
                
     if X_train is None:
@@ -439,39 +385,34 @@ def get_tuned_models(param_grids, data, X_train=None, scoring=SCORING, stage=1, 
     for model in baseline_models:
         model_class = model.__class__
         model_name = model_class.__name__
-
+        
         # rehydrate if file exists and permitted to do so
         pkl_name = get_pickle_name(model_name, stage, feature, target, split_type)
         if rehydrate and os.path.exists(pkl_name):
             with open(pkl_name, "rb") as file:
-                tuned_models[pkl_name] = pickle.load(file)
+                tuned_models[model_name] = pickle.load(file)
             continue
                 
         param_grid = param_grids[model_class]
         best_model, best_params = tune_model(model, param_grid, data, X_train, scoring=scoring)
         
-        tuned_models[pkl_name] = best_model
+        tuned_models[model_name] = best_model
         #tuned_models.append(best_model)
         print(f"{len(tuned_models.keys())}/{len(baseline_models)} models tuned\n")
         # store best params for rehydration
         #best_model_params[model_name] = best_params
         
+        # save as you go
+        with open(pkl_name, "wb") as file:
+            pickle.dump(best_model, file)    
+        
+        
     # save best params
-    for path, model in tuned_models.items():
-        with open(path, "wb") as file:
-            pickle.dump(model, file)    
+#    for path, model in tuned_models.items():
+#        with open(path, "wb") as file:
+#            pickle.dump(model, file)    
     
-    """
-    with open(json_file, "w") as file:
-        # Some algos wrap others, which makes them non-serializable
-        # Remove from list and we'll need to CV them each time
-        del best_model_params['AdaBoostClassifier']
-        del best_model_params['BaggingClassifier']
-        # save to JSON
-        json.dump(best_model_params, file)
-    """
-
-    return tuned_models.values()
+    return tuned_models
 
 
 def get_probs(models, data):
@@ -497,9 +438,6 @@ def get_probs(models, data):
     for model in models:
         # Get the model's class name to use as a column name
         model_name = model.__class__.__name__
-        # skip poorly performing stage 2 models
-        if model_name in ignore_in_phase_2:
-            continue
         # Check if the model requires scaling
         if model_name in model_needs_scaling:
             # Scale the data and use the original data for each model to avoid repeated scaling
@@ -520,55 +458,63 @@ def get_probs(models, data):
 
 
 @timing_decorator
-def run_comparison(data, include_baseline=True, include_stage_2=True, rehydrate=False, save_metrics=False):
+def run_comparison(data, include_baseline=True, include_stage_2=True, rehydrate=False, save_metrics=False, ph:PathHelper=None):
 
+    current_stage=1
     staged_metrics = []
     def append_to_staged(indf, stage):
         indf['stage'] = stage
         staged_metrics.append(indf.iloc[0])
-        
 
     # if we are exporting the tuned models for prediction, consider making a dictionary
     print("Stage 1: Tuning models on training data...\n")
-    s1_tuned_models = get_tuned_models(param_grids, data, rehydrate=rehydrate)
+    s1_tuned_model_dct = get_tuned_models(param_grids, data, rehydrate=rehydrate)
 
     if include_baseline:
         print("Stage 1: Training and evaluating baseline_models on training data...")
         s1_base_metrics = get_metrics(baseline_models, data)
         print(s1_base_metrics)
         append_to_staged(s1_base_metrics,0)
-        if save_metrics:
-            s1_base_metrics.to_csv("s1_baseline_metrics.csv")
-        
+        if ph:
+            s1_tuned_metrics.to_csv(ph.get_path(current_stage, 'baseline_metrics.csv'))        
 
     print("\nStage 1: Training and evaluating s1_tuned_models on training data...")
-    s1_tuned_metrics = get_metrics(s1_tuned_models, data)
+    s1_tuned_metrics = get_metrics(s1_tuned_model_dct.values(), data)
     print(s1_tuned_metrics)
     append_to_staged(s1_tuned_metrics,1)
-    if save_metrics:
-        s1_tuned_metrics.to_csv("s1_tuned_metrics.csv")
+    if ph:
+        s1_tuned_metrics.to_csv(ph.get_path(current_stage))
         
     if include_stage_2:
+        current_stage = 2
+                
+        # get f1 scores of 0 
+        noisey_models = s1_tuned_metrics[s1_tuned_metrics.f1==0].index.values
+
+        # neat trick for removing multiple keys from a dictionary
+        # https://www.geeksforgeeks.org/python-remove-multiple-keys-from-dictionary/
+        [s1_tuned_model_dct.pop(key) for key in noisey_models]
+
         # get the probability predictions for each model
-        train_probs, test_probs = get_probs(s1_tuned_models, data)
+        train_probs, test_probs = get_probs(s1_tuned_model_dct.values(), data)
 
         # get tuned models for stage 2
         print("Stage 2: Tuning models on probability data...\n")
-        s2_tuned_models = get_tuned_models(param_grids, data, X_train=train_probs, stage=2, rehydrate=rehydrate)
+        s1_tuned_model_dct = get_tuned_models(param_grids, data, X_train=train_probs, stage=2, rehydrate=rehydrate)
 
         if include_baseline:
             print("Stage 2: Training and evaluating baseline_models on probability data...")
             s2_base_metrics = get_metrics(baseline_models, data, X_train=train_probs, X_test=test_probs)
             print(s2_base_metrics)
-            if save_metrics:
-                s2_base_metrics.to_csv("s2_baseline_metrics.csv")
+            if ph:
+                s2_base_metrics.to_csv(ph.get_path(current_stage, 'baseline_metrics.csv'))        
 
         print("\nStage 2: Training and evaluating s2_tuned_models on probability data...")
-        s2_tuned_metrics = get_metrics(s2_tuned_models, data, X_train=train_probs, X_test=test_probs)
+        s2_tuned_metrics = get_metrics(s1_tuned_model_dct.values(), data, X_train=train_probs, X_test=test_probs)
         print(s2_tuned_metrics)
         append_to_staged(s2_tuned_metrics,2)
-        if save_metrics:
-            s2_tuned_metrics.to_csv("s2_tuned_metrics.csv")
+        if ph:
+            s2_tuned_metrics.to_csv(ph.get_path(current_stage))
             
     return staged_metrics
 
@@ -595,7 +541,7 @@ if __name__ == "__main__":
     
     parser.add_argument(
         '-sty', '--split_type',
-        help='Which split type? [date|std] Default is std',
+        help='Which split type? [date|std|all] Default is std',
         default="std",
         required=False
     )
@@ -615,16 +561,21 @@ if __name__ == "__main__":
         default="bear",
         required=False
     )
+    
+    parser.add_argument(
+        '-sm',
+        '--save_metrics',
+        help='Save metrics?  [yes|no] Default is yes',
+        default="yes",
+        required=False
+    )
+    
 
     # default selection params
     include_baseline=False
     include_stage_2=False
     rehydrate=True
     save_metrics=False
-    
-    # default splits
-    split_type = 'std'
-    target=TARGET
     
     # Parse and process args
     args = parser.parse_args()
@@ -640,8 +591,12 @@ if __name__ == "__main__":
     if args.include_baseline == 'y':
         include_baseline = True
 
-    # split type
-    split_type = args.split_type
+    # split type date|std|all
+    split_types = []
+    if args.split_type in ['std','all']:
+        split_types.append('std')
+    if args.split_type in ['date','all']:
+        split_types.append('date')
 
     # feature selection approach    
     feature_options = []
@@ -652,7 +607,6 @@ if __name__ == "__main__":
     if args.feature_option in ['none','all']:
         feature_options.append(None)
     
-
     # target
     split_targets = [] 
     if args.split_target in ['bear','all']:
@@ -667,20 +621,24 @@ if __name__ == "__main__":
 
     for feature in feature_options:
         for target in split_targets:    
-            # get training data
-            data = get_training_data(split_type=split_type, feature_type=feature, target=target)  
+            for split_type in split_types:
+                # assist in where to save output
+                ph = PathHelper(feature, target, split_type) if args.save_metrics else None
+                
+                # get training data
+                data = get_training_data(split_type=split_type, feature_type=feature, target=target)  
 
-            # get results
-            results_arr = run_comparison(data, include_baseline=include_baseline, include_stage_2=include_stage_2, rehydrate=rehydrate, save_metrics=save_metrics)            
+                # get results
+                results_arr = run_comparison(data, include_baseline=include_baseline, include_stage_2=include_stage_2, rehydrate=rehydrate, ph=ph)            
 
-            # format as df
-            df_results = pd.concat(results_arr,axis=1).T
+                # format as df
+                df_results = pd.concat(results_arr,axis=1).T
 
-            # save config as column
-            fname = feature if feature is not None else 'None'
-            config = f'{target}_{fname}_{split_type}'
-            df_results['config'] = config
-            
-            # save df
-            path = MODEL_PERFORMANCE + f'{config}.csv'                        
-            df_results.to_csv(path)
+                # save config as column
+                fname = feature if feature is not None else 'None'
+                config = f'{target}_{fname}_{split_type}'
+                df_results['config'] = config
+                
+                # save df
+                path = MODEL_PERFORMANCE + f'{config}.csv'                        
+                df_results.to_csv(path)

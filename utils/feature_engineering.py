@@ -4,7 +4,7 @@ import pandas as pd
 from statsmodels.tsa.stattools import adfuller
 from sklearn.preprocessing import StandardScaler
 
-from utils.constants import CANDIDATE_TARGETS
+from utils.constants import CANDIDATE_TARGETS, POST_CLEANING_START_DATE
 
 # https://pypi.org/project/cache-pandas/
 from cache_pandas import cache_to_csv
@@ -13,7 +13,7 @@ from cache_pandas import cache_to_csv
 import yfinance as yf
 import requests_cache
 
-def remove_variables(df, n=10, keep=None):
+def remove_variables(indf, n=10, keep=None):
     '''
     From: EDA_Spike/Part 2_Data Cleaning_v1.ipynb
     ----------
@@ -25,6 +25,10 @@ def remove_variables(df, n=10, keep=None):
     df : dataframe
     n : number of NaN values (int)
     '''
+    
+    # only examine columns that will be removed after final date cut
+    df = indf[indf.index >= POST_CLEANING_START_DATE].copy()
+    
     dropped_cols = {}
     for col in df.columns:
         if keep and col in keep:

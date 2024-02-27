@@ -34,7 +34,7 @@ features: split
 	python select_features.py
 
 selectmodels: features
-	python select_models.py
+	python select_models.py 
 
 predict: selectmodels
 	python predict.py
@@ -65,6 +65,12 @@ tunelasso2r:
 	python select_models.py --feature_option lasso --split_target rec --run_type stg2
 
 modelall: features
-	python select_models.py --feature_option all --split_target all --run_type stg2
+	python select_models.py --feature_option all --split_target rec --run_type stg2 --split_type date
+	python select_models.py --feature_option all --split_target all --run_type stg2 --split_type std
+
+# for Naomi
+modeldates: features
+	python select_models.py --feature_option all --split_target rec --run_type stg2 --split_type date
+
 
 resplitall: removesplit modelall

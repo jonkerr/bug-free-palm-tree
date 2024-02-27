@@ -162,7 +162,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '-sty', '--split_type',
         help='Which split type? [date|std|all] Default is std',
-        default="std",
+        default="all",
         required=False
     )
     

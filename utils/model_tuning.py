@@ -7,6 +7,14 @@ def get_fully_qualified_path(stage, feature, target, split_type):
     folder += '/'
     return folder
 
+class PathHelper():
+    def __init__(self, feature, target, split_type) -> None:
+        self.feature, self.target, self.split_type = feature, target, split_type
+        
+    def get_path(self, stage, filename='metrics.csv'):
+        path = get_fully_qualified_path(stage, self.feature, self.target, self.split_type)
+        return path + filename
+
 
 def get_simple_path(stage):
     return f'./model_data/stage_{stage}/'

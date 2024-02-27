@@ -11,7 +11,7 @@ from sklearn.preprocessing import StandardScaler
 # local
 from utils.model_tuning import get_pickle_name
 from utils.constants import PERFORMANCE_METRICS
-from select_models import baseline_models, get_training_data, train_and_evaluate
+from utils.training import get_training_data, baseline_models
 
 
 class StackedEnsembleBase(BaseEstimator, ABC):
@@ -206,14 +206,14 @@ if __name__ == "__main__":
     parser.add_argument(
         '-t',
         '--target',
-        help='Which split target? [bear|rec] Default is bear',
-        default="bear",
+        help='Which split target? [bear|rec|all] Default is all',
+        default="all",
         required=False
     )
 
     args = parser.parse_args()
     
-    if args.target == 'bear':
+    if args.target in ['bear','all']:
         test_model(BearStackedEnsemble())
-    else:
+    if args.target in ['rec','all']:
         test_model(RegimeStackedEnsemble())
