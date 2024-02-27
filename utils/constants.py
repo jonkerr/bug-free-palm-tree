@@ -30,7 +30,7 @@ TARGET = 'Regime'
 REMOVE_LIST = [*CANDIDATE_TARGETS, 'Date']
 
 # Training and evaluation
-SCORING = "f1"  # options: 'accuracy', 'precision', 'recall', 'f1', 'roc_auc'
+SCORING = "recall"  # options: 'accuracy', 'precision', 'recall', 'f1', 'roc_auc'
 SPLIT_TYPE = "std"
 SPLIT_TEST_SIZE = 0.25
 
