@@ -1,0 +1,14 @@
+,precision,recall,f1,roc_auc,accuracy,stage
+BaggingClassifier,0.9375,0.75,0.8333,0.8919,0.9429,2
+GradientBoostingClassifier,0.9615,0.625,0.7576,0.9227,0.9238,2
+LogisticRegression,0.6066,0.925,0.7327,0.9637,0.8714,2
+AdaBoostClassifier,0.92,0.575,0.7077,0.7816,0.9095,2
+SVC,0.88,0.55,0.6769,0.97,0.9,2
+ExtraTreesClassifier,0.88,0.55,0.6769,0.9744,0.9,2
+GaussianProcessClassifier,0.875,0.525,0.6563,0.9615,0.8952,2
+KNeighborsClassifier,0.8696,0.5,0.6349,0.7672,0.8905,2
+RandomForestClassifier,0.95,0.475,0.6333,0.9235,0.8952,2
+GaussianNB,0.8947,0.425,0.5763,0.9697,0.881,2
+BernoulliNB,0.3509,1.0,0.5195,0.9106,0.6476,2
+XGBClassifier,1.0,0.125,0.2222,0.8182,0.8333,2
+DecisionTreeClassifier,0.0,0.0,0.0,0.5,0.8095,2
