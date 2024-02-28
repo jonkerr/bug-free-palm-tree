@@ -15,7 +15,7 @@ import pandas as pd
 
 from sklearn.base import clone
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_val_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
@@ -30,6 +30,7 @@ from sklearn.ensemble import (
     BaggingClassifier,
 )
 from sklearn.metrics import (
+    make_scorer,
     roc_auc_score,
     accuracy_score,
     precision_score,
@@ -244,7 +245,52 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test):
 
     return results
 
-    
+def do_cross_val(model, X_train, y_train, X_test, y_test, type='test'):
+    """
+    Perform 10-fold stratified cross validation on a model.
+
+    Parameters:
+    - model: The model to be cross-validated.
+    - X: The features to be used in cross-validation.
+    - y: The labels to be used in cross-validation.
+    - type: The type of cross-validation to be performed. Default is 'test'.
+
+    Returns:
+    - results: A dictionary containing the evaluation metrics. mean and std
+    """
+
+    precision_scorer = make_scorer(precision_score, zero_division=0)
+    f1_scorer = make_scorer(f1_score, zero_division=0)
+
+    scoring = { 
+        "f1": f1_scorer,
+        "recall": "recall",
+        "precision": precision_scorer,
+        "accuracy": "accuracy",
+        "roc_auc": "roc_auc", 
+    }
+
+    results = {}
+
+    if type == 'test':
+        X = X_test
+        y = y_test.values.ravel()
+    else:
+        X = X_train
+        y = y_train.values.ravel()
+
+    stratified_cv = StratifiedKFold(
+        n_splits=10, shuffle=True, random_state=SEED
+    )
+
+    for metric_name, metric in scoring.items():
+        scores = cross_val_score(
+            model, X, y, cv=stratified_cv, scoring=metric, n_jobs=-1
+        )
+        results[metric_name] = round(scores.mean(), 4)
+        results[f"std_{metric_name}"] = round(scores.std(), 4)
+
+    return results
 
 def get_metrics(
     models, data, X_train=None, X_test=None, scoring=SCORING
@@ -280,7 +326,9 @@ def get_metrics(
             X_train_temp, X_test_temp = scale_data(X_train_temp, X_test_temp)
 
         # use temp copies for training and evaluation
-        metrics = train_and_evaluate(model, X_train_temp, y_train, X_test_temp, y_test)
+        # metrics = train_and_evaluate(model, X_train_temp, y_train, X_test_temp, y_test)
+        metrics = do_cross_val(model, X_train_temp, y_train, X_test_temp, y_test)
+
         results[model_name] = metrics
 
     df = pd.DataFrame(results).T
@@ -453,6 +501,10 @@ def get_probs(models, data):
             # Use the original training data for generating predictions
             train_probs[model_name] = model.predict_proba(data["X_train"])[:, 1]
             test_probs[model_name] = model.predict_proba(data["X_test"])[:, 1]
+
+    # export to csv
+    # train_probs.to_csv(f'{TARGET}_train_probs.csv')
+    # test_probs.to_csv(f'{TARGET}_test_probs.csv')
 
     return train_probs.round(4), test_probs.round(4)
 

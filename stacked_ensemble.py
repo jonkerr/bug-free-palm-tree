@@ -201,7 +201,7 @@ class BearStackedEnsemble(StackedEnsembleBase):
             'feature': None, 
             'target': 'bear', 
             'split_type': 'std',    
-            's2_model': 'BaggingClassifier'        
+            's2_model': 'ExtraTreesClassifier'        
         }
         
 
@@ -216,7 +216,7 @@ class RegimeStackedEnsemble(StackedEnsembleBase):
             'feature': None, 
             'target': 'Regime', 
             'split_type': 'std',    
-            's2_model': 'AdaBoostClassifier'        
+            's2_model': 'GaussianProcessClassifier'        
         }
 
    
