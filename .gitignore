@@ -185,3 +185,9 @@ http_cache.sqlite
 bears.png
 recession.csv
 model_data_f1/
+
+# hyperparam tuning
+model_data_f1_full/
+model_data_f1_little/
+model_data_auc_full/
+model_data_roc_little/
