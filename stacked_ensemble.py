@@ -15,7 +15,7 @@ from utils.model_tuning import get_pickle_name
 from utils.constants import PERFORMANCE_METRICS, SPLIT_TEST_SIZE, SEED
 from utils.training import get_training_data, baseline_models
 
-
+import warnings
 class StackedEnsembleBase(BaseEstimator, ABC):
     '''
     StackedEnsembleBase is an sklearn compatible estimator that provides the base functionality for various subclasses.
@@ -127,8 +127,10 @@ class StackedEnsembleBase(BaseEstimator, ABC):
 #        return
 
         # find and remove models that have an f1_score == 0 - e.g. useless estimators
-        self.remove_noisey_models(X_train, y_train)
-
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.remove_noisey_models(X_train, y_train)
+            
         # train stage 1 models
         self.print_debug('Fitting Stage 1')
         for model in self.stage1_models.values():
@@ -171,7 +173,7 @@ class StackedEnsembleBase(BaseEstimator, ABC):
         self.print_debug('Predicting Stage 2')
         probs = probs.round(4)
         if use_probs:
-            return self.stage2_model.predict_proba(probs)[:, 1]
+            return self.stage2_model.predict_proba(probs)
         else:
             return self.stage2_model.predict(probs)
 
