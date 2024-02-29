@@ -69,9 +69,6 @@ class StackedEnsembleBase(BaseEstimator, ABC):
         tuned_models = {}
         for model in baseline_models:
             model_name = model.__class__.__name__      
-#            if model_name in self.ignore_in_phase_2:
-#                continue                        
-#            tuned_models.append(self.__get_pickled_model__(model_name, 1, fs)) 
             tuned_models[model_name] = self.__get_pickled_model__(model_name, 1, fs)
             
         return tuned_models
@@ -123,9 +120,6 @@ class StackedEnsembleBase(BaseEstimator, ABC):
         X_train_scaled = self.scalar.fit_transform(X_train)
         probs = pd.DataFrame()
 
-#        print(y_train)
-#        return
-
         # find and remove models that have an f1_score == 0 - e.g. useless estimators
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -153,13 +147,14 @@ class StackedEnsembleBase(BaseEstimator, ABC):
         return self.predict(X_train)
     
 
-    def _predict(self, X, use_probs):
+    def _predict(self, X, use_probs, use_jury=False):
         '''
         Whether we're predicting probs or binary outcomes, only the last step is different while the rest is the same.
         As such, this will be implemented once, with a boolean value to determine which outcome is desired.        
         '''
         X_scaled = self.scalar.transform(X)
         probs = pd.DataFrame()
+        preds = pd.DataFrame()
 
         # test stage1 models
         self.print_debug('Predicting Stage 1')
@@ -169,25 +164,33 @@ class StackedEnsembleBase(BaseEstimator, ABC):
             # use scaled data if model needs it
             X_data = X_scaled if model_name in self.model_needs_scaling else X
             probs[model_name] = model.predict_proba(X_data)[:, 1]
+            preds[model_name] = model.predict(X_data)
+
+        if use_jury:
+            # take the average vote across the row
+            output_probs = preds.mean(axis=1) 
+            output_preds = output_probs > 0.5            
+            return output_probs if use_probs else output_preds
 
         self.print_debug('Predicting Stage 2')
         probs = probs.round(4)
         if use_probs:
-            return self.stage2_model.predict_proba(probs)
+            return self.stage2_model.predict_proba(probs)[:, 1]
         else:
             return self.stage2_model.predict(probs)
-
-    def predict(self, X):
+        
+        
+    def predict(self, X, use_jury=False):
         '''
         Predict a binary label based on supplied values of X
         '''
-        return self._predict(X, use_probs=False)
+        return self._predict(X, use_probs=False, use_jury=use_jury)
 
-    def predict_proba(self, X):
+    def predict_proba(self, X, use_jury=False):
         '''
         Predict probability of label based on supplied values of X
         '''
-        return self._predict(X, use_probs=True)
+        return self._predict(X, use_probs=True, use_jury=use_jury)
 
 
 class BearStackedEnsemble(StackedEnsembleBase):
@@ -220,7 +223,7 @@ class RegimeStackedEnsemble(StackedEnsembleBase):
         }
 
    
-def test_model(model: StackedEnsembleBase):
+def test_model(model: StackedEnsembleBase, target):
     '''
     Adapted from select_models.py
     '''
@@ -235,23 +238,28 @@ def test_model(model: StackedEnsembleBase):
     model.fit(X_train, y_train.values.ravel())  
     
     # get metrics
-    results = {}    
-    Y_pred = model.predict(X_test)  # Test the model
-    Y_pred_proba = model.predict_proba(X_test)
-    
-    for metric_name, metric_func in PERFORMANCE_METRICS.items():
-        if metric_name == "roc_auc":
-            score = metric_func(y_test, Y_pred_proba)
-        else:
-            score = metric_func(y_test, Y_pred)
-        results[metric_name] = round(score, 4)
+    def get_results(use_jury):
+        results = {}    
+        Y_pred = model.predict(X_test, use_jury)  # Test the model
+        Y_pred_proba = model.predict_proba(X_test, use_jury)
         
-        #print(f'{metric_name}: {results[metric_name]}')
+        for metric_name, metric_func in PERFORMANCE_METRICS.items():
+            if metric_name == "roc_auc":
+                score = metric_func(y_test, Y_pred_proba)
+            else:
+                score = metric_func(y_test, Y_pred)
+            results[metric_name] = round(score, 4)
+        return results
+     
+    jury_results = get_results(True)
+    print('Jury Results ', target)
+    print(pd.DataFrame(jury_results, index=[0]))
+            
+    model_results = get_results(False)
+    print('Model Results ', target)
+    print(pd.DataFrame(model_results, index=[0]))
     
-    df = pd.DataFrame(results, index=[0])
-    print(df)  
-
-    
+        
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
@@ -268,6 +276,6 @@ if __name__ == "__main__":
     
     verbose = False
     if args.target in ['bear','all']:
-        test_model(BearStackedEnsemble(verbose))
+        test_model(BearStackedEnsemble(verbose), 'bear')
     if args.target in ['rec','all']:
-        test_model(RegimeStackedEnsemble(verbose))
+        test_model(RegimeStackedEnsemble(verbose), 'rec')
