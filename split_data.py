@@ -3,6 +3,9 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
+# oversampling to fix the majority class
+from imblearn.over_sampling import SMOTE
+
 # project constants
 from utils.constants import SEED, REMOVE_LIST, CLEAN_DATA_PATH, SPLIT_DATA_PATH, SPLIT_TEST_SIZE
 
@@ -24,12 +27,12 @@ def date_split(df, target, split_date='1980-01-01'):
     y_test = df_test[[target]]
     return X_train, y_train, X_test, y_test
 
-
 def standard_split(df, target):
     X = df.drop(REMOVE_LIST, axis=1)
     y = df[target]
     X_train, X_test, y_train, y_test = train_test_split(    
         X, y, test_size=SPLIT_TEST_SIZE, stratify=y, random_state=SEED)
+    
     return X_train, y_train, X_test, y_test
 
 
@@ -68,6 +71,12 @@ def split_and_save(df_features, split_fn, target, paths):
     
     # split data
     X_train, y_train, X_test, y_test = split_fn(df_features, target)
+    
+    # rebalance classes
+    sm = SMOTE(random_state=SEED)
+    X_res, y_res = sm.fit_resample(X_train, y_train)
+    X_train = X_res
+    y_train = y_res
 
     # save
     try:
