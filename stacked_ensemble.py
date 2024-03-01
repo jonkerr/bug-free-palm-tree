@@ -204,7 +204,7 @@ class BearStackedEnsemble(StackedEnsembleBase):
             'feature': None, 
             'target': 'bear', 
             'split_type': 'std',    
-            's2_model': 'ExtraTreesClassifier'        
+            's2_model': 'AdaBoostClassifier'        
         }
         
 
@@ -216,10 +216,10 @@ class RegimeStackedEnsemble(StackedEnsembleBase):
 
     def get_feature_set(self):
         return {
-            'feature': None, 
+            'feature': 'lasso', 
             'target': 'Regime', 
             'split_type': 'std',    
-            's2_model': 'GaussianProcessClassifier'        
+            's2_model': 'AdaBoostClassifier'        
         }
 
    
