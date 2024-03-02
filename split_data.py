@@ -129,9 +129,11 @@ def create_training_data(df_features, target):
     print(f"Creating standard split training data for target {target}")
     # ['X_train_std.csv', 'y_train_std.csv', 'X_test_std.csv', 'y_test_std.csv']
     standard_fnames = [f'{name}_std.csv' for name in names]    
+    standard_fnames_no_smote = [f'{name}_std_no_smote.csv' for name in names]    
     standard_paths = [SPLIT_DATA_PATH + fname for fname in standard_fnames]
+    standard_paths_no_smote = [SPLIT_DATA_PATH + fname for fname in standard_fnames_no_smote]
     if not os.path.exists(standard_paths[0]):
-        split_and_save(df_features, standard_split, target, standard_paths)
+        split_and_save(df_features, standard_split, target, standard_paths, standard_paths_no_smote)
 
 
 def get_df(path):
