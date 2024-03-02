@@ -60,7 +60,7 @@ def set_drop_columns(target, indf):
         
     return drop
 
-def split_and_save(df_features, split_fn, target, paths):
+def split_and_save(df_features, split_fn, target, paths, no_smote_paths=None):
     '''
     Execute the provided split function and save each of the resultant dataframes
     '''
@@ -71,6 +71,18 @@ def split_and_save(df_features, split_fn, target, paths):
     
     # split data
     X_train, y_train, X_test, y_test = split_fn(df_features, target)
+    
+    if no_smote_paths is not None:
+        try:
+            dfs = [X_train, y_train, X_test, y_test]
+            for idx, df in enumerate(dfs):
+                df.to_csv(no_smote_paths[idx], index=False)
+        except Exception as ex:
+            for path in no_smote_paths:
+                if os.path.exists(path):
+                    os.remove(path)
+            raise ex
+        
     
     # rebalance classes
     sm = SMOTE(random_state=SEED)
@@ -108,9 +120,11 @@ def create_training_data(df_features, target):
         
     # ['X_train_date.csv', 'y_train_date.csv', 'X_test_date.csv', 'y_test_date.csv']
     date_names = [f'{name}_date.csv' for name in names]        
+    date_names_no_smote = [f'{name}_date_no_smote.csv' for name in names]        
     date_paths = [SPLIT_DATA_PATH + fname for fname in date_names]
+    date_paths_no_smote = [SPLIT_DATA_PATH + fname for fname in date_names_no_smote]
     if not os.path.exists(date_paths[0]):
-        split_and_save(df_features, date_split, target, date_paths)
+        split_and_save(df_features, date_split, target, date_paths, date_paths_no_smote)
 
     print(f"Creating standard split training data for target {target}")
     # ['X_train_std.csv', 'y_train_std.csv', 'X_test_std.csv', 'y_test_std.csv']

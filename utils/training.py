@@ -39,7 +39,7 @@ baseline_models = [
     xgb.XGBClassifier(random_state=SEED),
 ]
 
-def get_training_data(split_type=SPLIT_TYPE, feature_type=FEATURE_TYPE, target=TARGET, verbose=True):
+def get_training_data(split_type=SPLIT_TYPE, feature_type=FEATURE_TYPE, target=TARGET, verbose=True, smote=True):
     """
     need to get files in the form:
     paths = ['X_train_std.csv', 'y_train_std.csv', 'X_test_std.csv', 'y_test_std.csv']
@@ -48,10 +48,11 @@ def get_training_data(split_type=SPLIT_TYPE, feature_type=FEATURE_TYPE, target=T
     def format_name(fname):
         
         name = fname
+        smote_text = '' if smote else '_no_smote'
         if feature_type is not None and not 'y_' in name:
             name += "_" + feature_type
             
-        return f"{SPLIT_DATA_PATH}{name}_{target}_{split_type}.csv"
+        return f"{SPLIT_DATA_PATH}{name}_{target}_{split_type}{smote_text}.csv"
                 
         #if feature_type:
         #    return f"{TRAINING_DATA_PATH}{fname}_{feature_type}_{split_type}.csv"
