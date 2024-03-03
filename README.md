@@ -25,6 +25,20 @@ If using VS Code, be sure to use the same for Jupyter kernel
 Select kernel -> Python Environments -> mads_milestone2
 ```
 
+### Getting a FRED key
+
+To access FRED data, you must [request an API key](https://fredaccount.stlouisfed.org/login/secure/).  Once you have the key:
+
+1. Copy/rename hidden-dist.py to hidden.py
+2. Put your API key information in the place that's listed.
+
+
+More infor on FRED:
+* [API documentation](https://fred.stlouisfed.org/docs/api/fred/)  
+* [Tutorial](https://mortada.net/python-api-for-fred.html)
+
+
+
 ## General workflow
 
 ### Building Code
